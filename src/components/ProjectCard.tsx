@@ -61,13 +61,13 @@ export default function ProjectCard({ project, langColor, onClick }: Props) {
     >
       <div>
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-semibold text-gray-900 dark:text-white text-base group-hover:text-blue-500 dark:group-hover:text-blue-400 transition line-clamp-1 flex-1">
+          <h3 className="font-semibold text-gray-900 dark:text-white text-base group-hover:text-blue-500 dark:group-hover:text-blue-400 transition line-clamp-2 flex-1">
             {project.name}
           </h3>
-          
-          {/* Stars & Forks 展示 */}
+
+          {/* Stars & Forks 展示 - 两行 */}
           {project.owner && (
-            <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 text-[11px] shrink-0 font-semibold bg-gray-100 dark:bg-gray-950 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-800">
+            <div className="flex flex-col items-end gap-0.5 text-[11px] shrink-0 font-semibold bg-gray-100 dark:bg-gray-950 px-2 py-1 rounded border border-gray-200 dark:border-gray-800">
               <span className="flex items-center gap-1 text-amber-500">
                 <Star className="w-3 h-3 fill-amber-500" /> <span className="text-gray-700 dark:text-gray-300 font-medium">{project.stars}</span>
               </span>

@@ -279,7 +279,7 @@ export default function App() {
     return (
       <WorkspaceDetail
         workspaceId={selectedWorkspaceId}
-        onBack={() => { setView('workspaces'); setSelectedWorkspaceId(null) }}
+        onBack={() => { setView('home'); setSelectedWorkspaceId(null) }}
       />
     )
   }
