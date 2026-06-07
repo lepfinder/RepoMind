@@ -589,37 +589,37 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
         </div>
       </header>
 
-      <main className="w-full px-6 py-6 flex flex-col xl:flex-row gap-5 items-start">
-        {/* 左侧栏：本地文件树 */}
-        <div className="hidden xl:flex w-60 shrink-0 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-4 shadow-sm transition-colors duration-200 self-stretch xl:max-h-[calc(100vh-8rem)] xl:sticky xl:top-20 flex-col">
-          <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-2.5 mb-3 select-none shrink-0">
-            <FolderOpen className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-            <h3 className="text-xs font-bold text-gray-900 dark:text-white">本地文件树</h3>
-            {fileTree.length > 0 && (
-              <span className="ml-auto px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded text-[9px] font-bold">
-                {fileTree.length} 项
-              </span>
-            )}
+      <main className="w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start">
+        {/* 左侧栏：文件树 + 项目详情 */}
+        <div className="flex-1 min-w-0 flex flex-col gap-5">
+          {/* 文件树 */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-4 shadow-sm transition-colors duration-200">
+            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-2.5 mb-3 select-none">
+              <FolderOpen className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+              <h3 className="text-xs font-bold text-gray-900 dark:text-white">本地文件树</h3>
+              {fileTree.length > 0 && (
+                <span className="ml-auto px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded text-[9px] font-bold">
+                  {fileTree.length} 项
+                </span>
+              )}
+            </div>
+            <div className="overflow-y-auto max-h-[250px] custom-scrollbar">
+              {loadingFiles ? (
+                <div className="text-center py-8">
+                  <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-gray-400 text-[10px] mt-2">读取文件树中...</p>
+                </div>
+              ) : fileTree.length > 0 ? (
+                <div className="space-y-0.5">
+                  {fileTree.map(node => renderFileNode(node))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-400 dark:text-gray-500 text-[10px] py-10">未扫描到本地文件</p>
+              )}
+            </div>
           </div>
 
-          <div className="overflow-y-auto flex-1 pr-1 max-h-[300px] xl:max-h-none xl:min-h-0 custom-scrollbar">
-            {loadingFiles ? (
-              <div className="text-center py-8">
-                <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-gray-400 text-[10px] mt-2">读取文件树中...</p>
-              </div>
-            ) : fileTree.length > 0 ? (
-              <div className="space-y-0.5">
-                {fileTree.map(node => renderFileNode(node))}
-              </div>
-            ) : (
-              <p className="text-center text-gray-400 dark:text-gray-500 text-[10px] py-10">未扫描到本地文件</p>
-            )}
-          </div>
-        </div>
-
-        {/* 中间栏：项目详情内容 */}
-        <div className="flex-1 min-w-0">
+          {/* 项目详情内容 */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl shadow-sm transition-colors duration-200">
             {/* 顶部菜单操作与 Tab 控制栏 */}
             <div className="p-4 pb-0 space-y-4">
@@ -1021,7 +1021,7 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
       </div>
 
         {/* 右侧栏：AI 分析 */}
-        <div className="hidden xl:flex w-[40%] shrink-0 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl shadow-sm transition-colors duration-200 self-stretch xl:max-h-[calc(100vh-8rem)] xl:sticky xl:top-20 flex-col overflow-hidden">
+        <div className="w-full lg:w-[40%] shrink-0 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl shadow-sm transition-colors duration-200 self-stretch lg:max-h-[calc(100vh-8rem)] lg:sticky lg:top-20 flex flex-col overflow-hidden">
           {/* 头部 */}
           <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 px-4 py-3 shrink-0 select-none">
             <Zap className="w-4 h-4 text-purple-500" />
@@ -1049,7 +1049,7 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
                 <Zap className="w-8 h-8 text-purple-400 dark:text-purple-500 mb-2" />
                 <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">AI 项目诊断</h4>
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 max-w-[200px] leading-relaxed mb-3">
-                  点击开始，Hermes 会自行查看项目文件进行分析。
+                  点击开始，AI 会自行查看项目文件进行分析。
                 </p>
                 <button
                   onClick={() => analyzeProject()}
