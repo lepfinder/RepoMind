@@ -55,6 +55,46 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name);
   CREATE INDEX IF NOT EXISTS idx_projects_language ON projects(language);
   CREATE INDEX IF NOT EXISTS idx_analysis_project ON analysis(project_id);
+
+  CREATE TABLE IF NOT EXISTS workspaces (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS workspace_projects (
+    workspace_id INTEGER NOT NULL,
+    project_id INTEGER NOT NULL,
+    added_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (workspace_id, project_id),
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS workspace_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workspace_id INTEGER NOT NULL,
+    question TEXT NOT NULL,
+    summary TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS workspace_analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    project_id INTEGER NOT NULL,
+    answer TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (session_id) REFERENCES workspace_sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ws_proj_workspace ON workspace_projects(workspace_id);
+  CREATE INDEX IF NOT EXISTS idx_ws_sessions_workspace ON workspace_sessions(workspace_id);
+  CREATE INDEX IF NOT EXISTS idx_ws_analyses_session ON workspace_analyses(session_id);
 `);
 
 // Upgrade schema if fields are missing in an existing database
@@ -131,6 +171,28 @@ const getAnalysisByProjectId = db.prepare(`
   SELECT * FROM analysis WHERE project_id = ? ORDER BY created_at ASC
 `);
 
+// Workspace prepared statements
+const insertWorkspace = db.prepare('INSERT INTO workspaces (name, description) VALUES (?, ?)');
+const getAllWorkspaces = db.prepare('SELECT * FROM workspaces ORDER BY updated_at DESC');
+const getWorkspaceById = db.prepare('SELECT * FROM workspaces WHERE id = ?');
+const deleteWorkspace = db.prepare('DELETE FROM workspaces WHERE id = ?');
+const updateWorkspaceTimestamp = db.prepare("UPDATE workspaces SET updated_at = datetime('now') WHERE id = ?");
+
+const addProjectToWorkspace = db.prepare('INSERT OR IGNORE INTO workspace_projects (workspace_id, project_id) VALUES (?, ?)');
+const removeProjectFromWorkspace = db.prepare('DELETE FROM workspace_projects WHERE workspace_id = ? AND project_id = ?');
+const getWorkspaceProjects = db.prepare(`
+  SELECT p.* FROM projects p
+  INNER JOIN workspace_projects wp ON wp.project_id = p.id
+  WHERE wp.workspace_id = ?
+  ORDER BY p.name
+`);
+const getWorkspaceProjectIds = db.prepare('SELECT project_id FROM workspace_projects WHERE workspace_id = ?');
+
+const insertWorkspaceSession = db.prepare('INSERT INTO workspace_sessions (workspace_id, question, summary) VALUES (?, ?, ?)');
+const insertWorkspaceAnalysis = db.prepare('INSERT INTO workspace_analyses (session_id, project_id, answer) VALUES (?, ?, ?)');
+const getWorkspaceSessions = db.prepare('SELECT * FROM workspace_sessions WHERE workspace_id = ? ORDER BY created_at DESC');
+const getWorkspaceAnalyses = db.prepare('SELECT * FROM workspace_analyses WHERE session_id = ?');
+
 export {
   db,
   upsertProject,
@@ -140,4 +202,17 @@ export {
   deleteProjectByName,
   insertAnalysis,
   getAnalysisByProjectId,
+  insertWorkspace,
+  getAllWorkspaces,
+  getWorkspaceById,
+  deleteWorkspace,
+  updateWorkspaceTimestamp,
+  addProjectToWorkspace,
+  removeProjectFromWorkspace,
+  getWorkspaceProjects,
+  getWorkspaceProjectIds,
+  insertWorkspaceSession,
+  insertWorkspaceAnalysis,
+  getWorkspaceSessions,
+  getWorkspaceAnalyses,
 };

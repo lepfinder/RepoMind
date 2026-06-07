@@ -12,6 +12,19 @@ import {
   deleteProjectByName,
   insertAnalysis,
   getAnalysisByProjectId,
+  insertWorkspace,
+  getAllWorkspaces,
+  getWorkspaceById,
+  deleteWorkspace,
+  updateWorkspaceTimestamp,
+  addProjectToWorkspace,
+  removeProjectFromWorkspace,
+  getWorkspaceProjects,
+  getWorkspaceProjectIds,
+  insertWorkspaceSession,
+  insertWorkspaceAnalysis,
+  getWorkspaceSessions,
+  getWorkspaceAnalyses,
 } from './db.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -685,6 +698,268 @@ app.post('/api/scan', (req, res) => {
       res.end();
     }
   });
+});
+
+// ============ Workspace API ============
+
+// GET /api/workspaces - 列出所有工作空间
+app.get('/api/workspaces', (req, res) => {
+  try {
+    const workspaces = getAllWorkspaces.all();
+    const result = workspaces.map(w => {
+      const projects = getWorkspaceProjects.all(w.id);
+      return { ...w, projects: projects.map(p => ({ ...p, topics: JSON.parse(p.topics || '[]') })) };
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/workspaces - 创建工作空间
+app.post('/api/workspaces', (req, res) => {
+  try {
+    const { name, description, projectIds } = req.body;
+    if (!name) return res.status(400).json({ error: '名称不能为空' });
+
+    const result = insertWorkspace.run(name, description || '');
+    const workspaceId = result.lastInsertRowid;
+
+    if (projectIds && projectIds.length > 0) {
+      for (const pid of projectIds) {
+        addProjectToWorkspace.run(workspaceId, pid);
+      }
+    }
+
+    const workspace = getWorkspaceById.get(workspaceId);
+    const projects = getWorkspaceProjects.all(workspaceId);
+    res.json({ ...workspace, projects: projects.map(p => ({ ...p, topics: JSON.parse(p.topics || '[]') })) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/workspaces/:id - 删除工作空间
+app.delete('/api/workspaces/:id', (req, res) => {
+  try {
+    deleteWorkspace.run(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/workspaces/:id/projects - 添加项目到工作空间
+app.post('/api/workspaces/:id/projects', (req, res) => {
+  try {
+    const { projectId } = req.body;
+    addProjectToWorkspace.run(req.params.id, projectId);
+    updateWorkspaceTimestamp.run(req.params.id);
+    const projects = getWorkspaceProjects.all(req.params.id);
+    res.json(projects.map(p => ({ ...p, topics: JSON.parse(p.topics || '[]') })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/workspaces/:id/projects/:projectId - 从工作空间移除项目
+app.delete('/api/workspaces/:id/projects/:projectId', (req, res) => {
+  try {
+    removeProjectFromWorkspace.run(req.params.id, req.params.projectId);
+    updateWorkspaceTimestamp.run(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/workspaces/:id/sessions - 获取工作空间的分析历史
+app.get('/api/workspaces/:id/sessions', (req, res) => {
+  try {
+    const sessions = getWorkspaceSessions.all(req.params.id);
+    const result = sessions.map(s => ({
+      ...s,
+      analyses: getWorkspaceAnalyses.all(s.id),
+    }));
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/workspaces/:id/analyze - 对工作空间内所有项目进行对比分析
+app.post('/api/workspaces/:id/analyze', async (req, res) => {
+  const { question } = req.body;
+  const workspaceId = req.params.id;
+
+  const workspace = getWorkspaceById.get(workspaceId);
+  if (!workspace) return res.status(404).json({ error: '工作空间不存在' });
+
+  const projects = getWorkspaceProjects.all(workspaceId);
+  if (projects.length === 0) return res.status(400).json({ error: '工作空间内没有项目' });
+
+  // SSE 响应
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const ac = new AbortController();
+  const apiKey = getHermesApiKey();
+
+  try {
+    // 阶段 1：并行分析每个项目
+    res.write(`data: ${JSON.stringify({ status: 'phase', phase: 'analyzing', message: `正在并行分析 ${projects.length} 个项目...` })}\n\n`);
+
+    const analysisPrompt = `你是项目分析专家。请针对项目 "${'${name}'}" 回答以下问题：
+
+问题：${question || '请分析这个项目的核心设计和实现'}
+
+要求：
+1. 只回答与本项目相关的部分
+2. 重点提取：设计思路、核心实现、关键代码位置
+3. 输出结构化的分析摘要，不超过 500 字
+4. 标注具体的文件路径和代码位置
+5. 用中文回答`;
+
+    // 并行分析每个项目（限制并发 3）
+    const analyzeProject = async (project) => {
+      const sessionId = `ws-${workspaceId}-${project.name}`;
+      const sysPrompt = `你是项目分析助手。项目: ${project.name}，路径: ${project.local_path}。你有文件读取权限。`;
+
+      try {
+        const response = await fetch('http://127.0.0.1:8642/v1/chat/completions', {
+          signal: ac.signal,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'X-Hermes-Session-Id': sessionId,
+          },
+          body: JSON.stringify({
+            model: 'hermes-agent',
+            messages: [
+              { role: 'system', content: sysPrompt },
+              { role: 'user', content: analysisPrompt.replace('${name}', project.name) },
+            ],
+            stream: true,
+          }),
+        });
+
+        if (!response.ok) throw new Error(`Gateway error: ${response.status}`);
+
+        let content = '';
+        let buffer = '';
+        for await (const chunk of response.body) {
+          buffer += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const dataStr = line.slice(6).trim();
+            if (dataStr === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(dataStr);
+              const c = parsed.choices?.[0]?.delta?.content;
+              if (c) content += c;
+            } catch {}
+          }
+        }
+        return { project: project.name, projectId: project.id, content, error: null };
+      } catch (err) {
+        return { project: project.name, projectId: project.id, content: '', error: err.message };
+      }
+    };
+
+    // 分批并发（每批 3 个）
+    const results = [];
+    const batchSize = 3;
+    for (let i = 0; i < projects.length; i += batchSize) {
+      const batch = projects.slice(i, i + batchSize);
+      const batchResults = await Promise.all(batch.map(analyzeProject));
+      for (const r of batchResults) {
+        results.push(r);
+        res.write(`data: ${JSON.stringify({ status: 'project_done', project: r.project, error: r.error })}\n\n`);
+      }
+    }
+
+    // 阶段 2：汇总对比
+    res.write(`data: ${JSON.stringify({ status: 'phase', phase: 'summarizing', message: '正在生成对比总结...' })}\n\n`);
+
+    const summaries = results.map(r =>
+      `## 项目: ${r.project}${r.error ? ' (分析失败: ' + r.error + ')' : ''}\n${r.content || '无内容'}`
+    ).join('\n\n---\n\n');
+
+    const summaryPrompt = `你是技术架构对比分析专家。以下是 ${projects.length} 个同类项目针对同一问题的分析结果：
+
+问题：${question || '请分析这个项目的核心设计和实现'}
+
+${summaries}
+
+请输出：
+1. **总结**：一句话概括整体趋势或共性
+2. **对比表**：用 markdown 表格列出各项目在关键维度上的差异
+3. **亮点**：每个项目最值得借鉴的设计
+4. **建议**：如果你要实现类似功能，推荐参考哪个项目的方案
+
+用中文回答。`;
+
+    const summarySessionId = `ws-${workspaceId}-summary`;
+    const summaryResponse = await fetch('http://127.0.0.1:8642/v1/chat/completions', {
+      signal: ac.signal,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'X-Hermes-Session-Id': summarySessionId,
+      },
+      body: JSON.stringify({
+        model: 'hermes-agent',
+        messages: [
+          { role: 'system', content: '你是技术架构对比分析专家，擅长总结和对比不同项目的设计差异。' },
+          { role: 'user', content: summaryPrompt },
+        ],
+        stream: true,
+      }),
+    });
+
+    let summaryContent = '';
+    let summaryBuffer = '';
+    for await (const chunk of summaryResponse.body) {
+      summaryBuffer += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
+      const lines = summaryBuffer.split('\n');
+      summaryBuffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const dataStr = line.slice(6).trim();
+        if (dataStr === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(dataStr);
+          const c = parsed.choices?.[0]?.delta?.content;
+          if (c) {
+            summaryContent += c;
+            res.write(`data: ${JSON.stringify({ status: 'chunk', content: c })}\n\n`);
+          }
+        } catch {}
+      }
+    }
+
+    // 存入数据库
+    const sessionResult = insertWorkspaceSession.run(workspaceId, question || '', summaryContent);
+    const sessionId2 = sessionResult.lastInsertRowid;
+    for (const r of results) {
+      insertWorkspaceAnalysis.run(sessionId2, r.projectId, r.content);
+    }
+
+    res.write(`data: ${JSON.stringify({ status: 'done' })}\n\n`);
+    res.end();
+
+  } catch (error) {
+    console.error('[Workspace Analyze] Failed:', error.message);
+    try {
+      res.write(`data: ${JSON.stringify({ status: 'error', message: error.message })}\n\n`);
+      res.end();
+    } catch {}
+  }
 });
 
 // POST /api/analyze/stop - 取消进行中的分析

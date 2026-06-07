@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Sun, Moon, FolderPlus, Loader2, Check, AlertCircle, RefreshCw } from 'lucide-react'
+import { Sun, Moon, FolderPlus, Loader2, Check, AlertCircle, RefreshCw, Layers } from 'lucide-react'
 import type { Project } from './types'
 import ProjectCard from './components/ProjectCard'
 import ProjectDetail from './components/ProjectDetail'
+import WorkspaceList from './components/WorkspaceList'
+import WorkspaceDetail from './components/WorkspaceDetail'
 
 const API_BASE = 'http://localhost:3001'
 
@@ -58,6 +60,8 @@ export default function App() {
   const [filterLang, setFilterLang] = useState('')
   const [sortBy, setSortBy] = useState<'commit' | 'created'>('created')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [view, setView] = useState<'home' | 'workspaces' | 'workspace-detail'>('home')
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
   const [scanning, setScanning] = useState(false)
@@ -242,6 +246,24 @@ export default function App() {
     })
   }, [projects, search, filterLang, sortBy])
 
+  if (view === 'workspaces') {
+    return (
+      <WorkspaceList
+        onBack={() => setView('home')}
+        onOpenWorkspace={(id) => { setSelectedWorkspaceId(id); setView('workspace-detail') }}
+      />
+    )
+  }
+
+  if (view === 'workspace-detail' && selectedWorkspaceId) {
+    return (
+      <WorkspaceDetail
+        workspaceId={selectedWorkspaceId}
+        onBack={() => { setView('workspaces'); setSelectedWorkspaceId(null) }}
+      />
+    )
+  }
+
   if (selectedProject) {
     return (
       <ProjectDetail
@@ -268,6 +290,14 @@ export default function App() {
               </p>
             </div>
             <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setView('workspaces')}
+                className="px-3.5 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center shadow-sm active:scale-95 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer"
+                title="工作空间 - 跨项目对比分析"
+              >
+                <Layers className="w-4 h-4 mr-1.5" />
+                空间
+              </button>
               <a
                 href="https://github.com/trending"
                 target="_blank"
