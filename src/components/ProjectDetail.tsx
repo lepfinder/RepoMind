@@ -135,7 +135,7 @@ const TOOL_EMOJI: Record<string, string> = {
   // Claude Code tools
   Read: '📖', Write: '✏️', Edit: '✏️', Bash: '⚡',
   Glob: '🔍', Grep: '🔍', WebFetch: '🌐', WebSearch: '🔍',
-  Agent: '🤖', NotebookEdit: '📓',
+  Agent: '🤖', NotebookEdit: '📓', thinking: '🤔',
 }
 const TOOL_VERB: Record<string, string> = {
   // Hermes tools
@@ -144,7 +144,7 @@ const TOOL_VERB: Record<string, string> = {
   // Claude Code tools
   Read: 'read', Write: 'write', Edit: 'edit', Bash: 'run',
   Glob: 'search', Grep: 'grep', WebFetch: 'fetch', WebSearch: 'search',
-  Agent: 'agent', NotebookEdit: 'edit',
+  Agent: 'agent', NotebookEdit: 'edit', thinking: '',
 }
 
 function toolIcon(tool: string) { return TOOL_EMOJI[tool] || '🔧' }
@@ -462,7 +462,14 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
                 const label = data.label || ''
                 const icon = toolIcon(tool)
                 if (!data.done && label) {
-                  setActivities(prev => [...prev, { icon, text: `${toolVerb(tool)}  ${shortLabel(label)}` }])
+                  setActivities(prev => {
+                    const next = [...prev, { icon, text: `${toolVerb(tool)}  ${shortLabel(label)}` }]
+                    // thinking 心跳只保留最新的，清除之前的
+                    if (tool === 'thinking') {
+                      return next.filter((a, i) => i === next.length - 1 || a.icon !== '🤔')
+                    }
+                    return next
+                  })
                 }
               } else if (data.status === 'thinking') {
                 setActivities(prev => [...prev, { icon: '🤔', text: data.message || 'thinking…' }])

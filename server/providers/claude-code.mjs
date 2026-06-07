@@ -89,9 +89,18 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
   const activeTools = new Map(); // index -> { name, input }
   let toolIndex = 0;
   let thinkingOpen = false;
+  let hasReceivedData = false;
+
+  // 心跳：在 Claude Code 启动静默期间定期发送 thinking 状态
+  const heartbeat = setInterval(() => {
+    if (!hasReceivedData) {
+      onTool({ tool: 'thinking', label: 'Claude Code 准备中...', done: false });
+    }
+  }, 3000);
 
   child.stderr.on('data', (chunk) => {
-    console.error('[Claude Code stderr]', chunk.toString().trim());
+    const msg = chunk.toString().trim();
+    if (msg) console.error('[Claude Code stderr]', msg);
   });
 
   // Parse JSONL output
@@ -106,6 +115,7 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
 
       try {
         const event = JSON.parse(trimmed);
+        hasReceivedData = true;
 
         if (event.type === 'stream_event') {
           const streamEvent = event.event;
@@ -210,6 +220,7 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
     child.on('close', resolve);
   });
 
+  clearInterval(heartbeat);
   onDone();
   return currentContent;
 }

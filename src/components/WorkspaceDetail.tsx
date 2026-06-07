@@ -13,7 +13,7 @@ const TOOL_EMOJI: Record<string, string> = {
   // Claude Code tools
   Read: '📖', Write: '✏️', Edit: '✏️', Bash: '⚡',
   Glob: '🔍', Grep: '🔍', WebFetch: '🌐', WebSearch: '🔍',
-  Agent: '🤖', NotebookEdit: '📓',
+  Agent: '🤖', NotebookEdit: '📓', thinking: '🤔',
 }
 
 const TOOL_VERB: Record<string, string> = {
@@ -23,7 +23,7 @@ const TOOL_VERB: Record<string, string> = {
   // Claude Code tools
   Read: 'read', Write: 'write', Edit: 'edit', Bash: 'run',
   Glob: 'search', Grep: 'grep', WebFetch: 'fetch', WebSearch: 'search',
-  Agent: 'agent', NotebookEdit: 'edit',
+  Agent: 'agent', NotebookEdit: 'edit', thinking: '',
 }
 
 function toolIcon(tool: string) { return TOOL_EMOJI[tool] || '🔧' }
@@ -266,7 +266,13 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
               const tool = data.tool || ''
               const label = data.label || ''
               if (!data.done && label) {
-                setActivities(prev => [...prev, { icon: toolIcon(tool), text: `${toolVerb(tool)}  ${shortLabel(label)}` }])
+                setActivities(prev => {
+                  const next = [...prev, { icon: toolIcon(tool), text: `${toolVerb(tool)}  ${shortLabel(label)}` }]
+                  if (tool === 'thinking') {
+                    return next.filter((a, i) => i === next.length - 1 || a.icon !== '🤔')
+                  }
+                  return next
+                })
               }
             } else if (data.status === 'error') {
               setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: `分析出错: ${data.message}`, isComplete: true } : m))
