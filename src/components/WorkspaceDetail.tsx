@@ -258,9 +258,9 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
         </div>
       </header>
 
-      <main className="w-full px-6 py-6 flex flex-col xl:flex-row gap-5 items-start">
+      <main className="w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start">
         {/* 左侧：项目列表 */}
-        <div className="hidden xl:flex w-60 shrink-0 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-4 shadow-sm self-stretch xl:max-h-[calc(100vh-8rem)] xl:sticky xl:top-20 flex-col">
+        <div className="w-full lg:w-64 shrink-0 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-4 shadow-sm self-stretch lg:max-h-[calc(100vh-8rem)] lg:sticky lg:top-20 flex flex-col">
           <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-2.5 mb-3 select-none shrink-0">
             <FolderOpen className="w-4 h-4 text-purple-500" />
             <h3 className="text-xs font-bold text-gray-900 dark:text-white">项目列表</h3>
@@ -295,93 +295,14 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
           </div>
         </div>
 
-        {/* 中间：对比分析结果 */}
-        <div className="flex-1 min-w-0">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl shadow-sm">
-            <div className="p-4 pb-0">
-              <div className="flex items-center gap-2 mb-3">
-                <Zap className="w-4 h-4 text-purple-500" />
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">对比分析结果</h3>
-              </div>
-            </div>
-            <div className="p-4 pt-3">
-              {messages.length === 0 ? (
-                <div className="text-center py-16">
-                  <Search className="w-10 h-10 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
-                  <p className="text-gray-400 text-sm mb-1">输入问题开始对比分析</p>
-                  <p className="text-gray-400 text-xs">AI 将并行分析所有项目并生成对比报告</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map(msg => (
-                    <div key={msg.id} className={`${msg.role === 'user' ? 'ml-12' : 'mr-12'}`}>
-                      <div className={`rounded-xl px-4 py-3 ${msg.role === 'user' ? 'bg-blue-600 text-white text-xs ml-auto max-w-fit' : 'bg-gray-50 dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 text-xs border border-gray-100 dark:border-gray-700/50'}`}>
-                        {msg.role === 'user' ? (
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
-                        ) : msg.isComplete === false && !msg.content && activities.length > 0 ? (
-                          <div className="space-y-0.5 py-0.5 font-mono text-[11px]">
-                            {activities.map((a, i) => (
-                              <div key={i} className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
-                                <span className="text-gray-300 dark:text-gray-600 select-none">┊</span>
-                                <span>{a.icon}</span>
-                                <span className={a.done ? 'text-gray-500 dark:text-gray-400' : 'animate-pulse'}>{a.text}</span>
-                              </div>
-                            ))}
-                            <div className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
-                              <span className="text-gray-300 dark:text-gray-600 select-none">┊</span>
-                              <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                              <span className="animate-pulse">working…</span>
-                              <button onClick={stopAnalysis} className="ml-2 px-2 py-0.5 text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition cursor-pointer">停止</button>
-                            </div>
-                          </div>
-                        ) : msg.isComplete === false && !msg.content ? (
-                          <div className="flex items-center gap-2 py-1">
-                            <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                            <span className="text-[10px] text-gray-400">思考中...</span>
-                          </div>
-                        ) : msg.content ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none
-                            [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
-                            [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
-                            [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
-                            [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
-                            [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
-                            [&_li]:text-[12px] [&_li]:my-0.5
-                            [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono
-                            [&_pre]:bg-gray-900 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto
-                            [&_pre_code]:bg-transparent [&_pre_code]:text-gray-200
-                            [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
-                            [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
-                            [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
-                            [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 [&_blockquote]:italic
-                          ">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                              {msg.content}
-                            </ReactMarkdown>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 py-1">
-                            <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                            <span className="text-[10px] text-gray-400">思考中...</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 右侧：AI 对话输入 */}
-        <div className="hidden xl:flex w-[40%] shrink-0 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl shadow-sm self-stretch xl:max-h-[calc(100vh-8rem)] xl:sticky xl:top-20 flex-col overflow-hidden">
+        {/* 右侧：AI 对话 */}
+        <div className="flex-1 min-w-0 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl shadow-sm flex flex-col overflow-hidden lg:max-h-[calc(100vh-8rem)] lg:sticky lg:top-20">
           <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 px-4 py-3 shrink-0 select-none">
             <Zap className="w-4 h-4 text-purple-500" />
             <h3 className="text-xs font-bold text-gray-900 dark:text-white">对比分析</h3>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Zap className="w-8 h-8 text-purple-400 dark:text-purple-500 mb-2" />
@@ -395,26 +316,67 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {messages.filter(m => m.role === 'user').map(msg => (
-                  <div key={msg.id} className="flex justify-end">
-                    <div className="max-w-[85%] bg-blue-600 text-white text-[11px] rounded-xl rounded-br-md px-3 py-2">
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                    </div>
-                  </div>
-                ))}
-                {messages.filter(m => m.role === 'assistant').map(msg => (
-                  <div key={msg.id} className="flex justify-start">
-                    <div className="max-w-[85%] bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[11px] rounded-xl rounded-bl-md px-3 py-2 border border-gray-100 dark:border-gray-700/50">
-                      {msg.content ? (
-                        <p className="whitespace-pre-wrap line-clamp-6">{msg.content.slice(0, 200)}{msg.content.length > 200 ? '...' : ''}</p>
+              <>
+                {messages.map(msg => (
+                  <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[90%] rounded-xl px-4 py-3 ${
+                      msg.role === 'user'
+                        ? 'bg-blue-600 text-white text-xs leading-relaxed rounded-br-md'
+                        : 'bg-gray-50 dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 text-xs leading-relaxed rounded-bl-md border border-gray-100 dark:border-gray-700/50'
+                    }`}>
+                      {msg.role === 'user' ? (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      ) : msg.isComplete === false && !msg.content && activities.length > 0 ? (
+                        <div className="space-y-0.5 py-0.5 font-mono text-[11px]">
+                          {activities.map((a, i) => (
+                            <div key={i} className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
+                              <span className="text-gray-300 dark:text-gray-600 select-none">┊</span>
+                              <span>{a.icon}</span>
+                              <span className={a.done ? 'text-gray-500 dark:text-gray-400' : 'animate-pulse'}>{a.text}</span>
+                            </div>
+                          ))}
+                          <div className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
+                            <span className="text-gray-300 dark:text-gray-600 select-none">┊</span>
+                            <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                            <span className="animate-pulse">working…</span>
+                            <button onClick={stopAnalysis} className="ml-2 px-2 py-0.5 text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition cursor-pointer">停止</button>
+                          </div>
+                        </div>
+                      ) : msg.isComplete === false && !msg.content ? (
+                        <div className="flex items-center gap-2 py-1">
+                          <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-[10px] text-gray-400">思考中...</span>
+                        </div>
+                      ) : msg.content ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none
+                          [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
+                          [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
+                          [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
+                          [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
+                          [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
+                          [&_li]:text-[12px] [&_li]:my-0.5
+                          [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono
+                          [&_pre]:bg-gray-900 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto
+                          [&_pre_code]:bg-transparent [&_pre_code]:text-gray-200
+                          [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
+                          [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
+                          [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
+                          [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 [&_blockquote]:italic
+                        ">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
                       ) : (
-                        <span className="text-gray-400">分析中...</span>
+                        <div className="flex items-center gap-2 py-1">
+                          <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-[10px] text-gray-400">思考中...</span>
+                        </div>
                       )}
                     </div>
                   </div>
                 ))}
-              </div>
+              </>
             )}
           </div>
 
