@@ -22,7 +22,6 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
     '--verbose',
     '--include-partial-messages',
     '--permission-mode', 'acceptEdits',
-    '--cwd', projectPath,
     '--max-turns', '30',
   ];
 
