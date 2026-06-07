@@ -651,8 +651,11 @@ app.post('/api/scan', (req, res) => {
   child.on('exit', (code) => {
     if (code !== 0 && code !== null) {
       res.write(`data: ${JSON.stringify({ status: 'error', message: `扫描异常退出 (code: ${code})` })}\n\n`);
-      res.end();
+    } else {
+      // 正常退出（可能是 24h 节流跳过），确保关闭 SSE
+      res.write(`data: ${JSON.stringify({ status: 'done', message: '扫描完成。' })}\n\n`);
     }
+    res.end();
   });
 });
 
