@@ -606,6 +606,7 @@ app.post('/api/scan', (req, res) => {
 
   const scanPath = path.resolve(__dirname, '..', 'scripts', 'scan.mjs');
 
+  console.log('[Scan] 触发扫描请求');
   res.write(`data: ${JSON.stringify({ status: 'scanning', message: '正在唤醒扫描引擎...' })}\n\n`);
 
   const child = exec(`node ${scanPath}`, {
