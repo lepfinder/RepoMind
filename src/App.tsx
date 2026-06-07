@@ -243,6 +243,21 @@ export default function App() {
     loadWorkspaces()
   }, [])
 
+  // URL 参数自动跳转: ?project=xxx
+  useEffect(() => {
+    if (!loaded || projects.length === 0) return
+    const params = new URLSearchParams(window.location.search)
+    const projectName = params.get('project')
+    if (projectName) {
+      const target = projects.find(p => p.name === projectName)
+      if (target) {
+        setSelectedProject(target)
+        // 清除 URL 参数避免刷新后重复跳转
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [loaded, projects])
+
   const languages = useMemo(() => {
     const set = new Set(projects.map(p => p.language))
     return Array.from(set).sort()

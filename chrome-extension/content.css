@@ -63,6 +63,15 @@
   border-color: #f85149;
 }
 
+.gi-btn.gi-btn-view {
+  background-color: #1f6feb;
+  text-decoration: none;
+}
+
+.gi-btn.gi-btn-view:hover:not(:disabled) {
+  background-color: #388bfd;
+}
+
 /* Dark mode support */
 .dark .gi-btn,
 [data-color-mode="dark"] .gi-btn {
