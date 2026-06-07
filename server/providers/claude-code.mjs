@@ -38,12 +38,11 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
     '--max-turns', '30',
   ];
 
-  // Reuse session for continuity (Claude Code requires UUID format)
-  if (sessionId) {
-    args.push('--session-id', toUUID(sessionId));
-  }
+  // Use --continue to resume the most recent session in this directory
+  // This avoids "session already in use" errors during parallel analysis
+  args.push('--continue');
 
-  console.log(`[Claude Code] Spawning for project: ${projectName}, session: ${sessionId}`);
+  console.log(`[Claude Code] Spawning for project: ${projectName}`);
 
   const child = spawn('claude', args, {
     cwd: projectPath,
