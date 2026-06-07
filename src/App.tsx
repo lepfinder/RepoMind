@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Sun, Moon, FolderPlus, Loader2, Check, AlertCircle, RefreshCw, Layers, Settings } from 'lucide-react'
+import { Sun, Moon, FolderPlus, Loader2, Check, AlertCircle, RefreshCw, Layers, Settings, ChevronRight } from 'lucide-react'
 import type { Project } from './types'
 import ProjectCard from './components/ProjectCard'
 import ProjectDetail from './components/ProjectDetail'
@@ -67,6 +67,10 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanProgress, setScanProgress] = useState('')
+
+  // 工作空间状态
+  const [workspaces, setWorkspaces] = useState<{ id: number; name: string; description: string; projects: any[]; created_at: string }[]>([])
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(false)
 
   // 导入 GitHub 状态管理
   const [showSettings, setShowSettings] = useState(false)
@@ -174,6 +178,19 @@ export default function App() {
     }
   }
 
+  const loadWorkspaces = async () => {
+    setLoadingWorkspaces(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/workspaces`)
+      const data = await res.json()
+      setWorkspaces(data)
+    } catch (e) {
+      console.error('Failed to load workspaces:', e)
+    } finally {
+      setLoadingWorkspaces(false)
+    }
+  }
+
   const triggerScan = async () => {
     setScanning(true)
     setScanProgress('正在唤醒扫描引擎...')
@@ -223,6 +240,7 @@ export default function App() {
   // Auto-load on mount
   useEffect(() => {
     loadProjects()
+    loadWorkspaces()
   }, [])
 
   const languages = useMemo(() => {
@@ -401,11 +419,66 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-6">
-        {!loaded && !loading && (
-          <div className="text-center py-20">
-            <p className="text-gray-400 text-lg">Run `npm run scan` to generate the index</p>
+        {/* 工作空间区域 */}
+        {workspaces.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Layers className="w-5 h-5 text-blue-500" />
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">工作空间</h2>
+              </div>
+              <button
+                onClick={() => setView('workspaces')}
+                className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors cursor-pointer"
+              >
+                查看全部
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {workspaces.slice(0, 4).map(ws => (
+                <div
+                  key={ws.id}
+                  onClick={() => { setSelectedWorkspaceId(ws.id); setView('workspace-detail') }}
+                  className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/30 rounded-lg flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-950/50 transition-colors">
+                      <Layers className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">{ws.name}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{ws.projects.length} 个项目</p>
+                    </div>
+                  </div>
+                  {ws.description && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-3">{ws.description}</p>
+                  )}
+                  <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
+                    <span>创建于 {new Date(ws.created_at).toLocaleDateString('zh-CN')}</span>
+                    <ChevronRight className="w-4 h-4 group-hover:text-blue-500 transition-colors" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
+
+        {/* 项目列表区域 */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <FolderPlus className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">项目列表</h2>
+              {loaded && <span className="text-sm text-gray-500 dark:text-gray-400">({filtered.length})</span>}
+            </div>
+          </div>
+
+          {!loaded && !loading && (
+            <div className="text-center py-20">
+              <p className="text-gray-400 text-lg">Run `npm run scan` to generate the index</p>
+            </div>
+          )}
 
         {loading && (
           <div className="text-center py-20">
@@ -432,6 +505,7 @@ export default function App() {
             ))}
           </div>
         )}
+        </div>
       </main>
       {showImportModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
