@@ -1,7 +1,20 @@
 import { spawn } from 'child_process';
+import { createHash } from 'crypto';
 
 export const name = 'claude-code';
 export const displayName = 'Claude Code';
+
+// 将任意字符串转换为确定性 UUID v4 格式
+function toUUID(str) {
+  const hash = createHash('sha256').update(str).digest('hex');
+  return [
+    hash.slice(0, 8),
+    hash.slice(8, 12),
+    '4' + hash.slice(13, 16),  // version 4
+    ((parseInt(hash.slice(16, 17), 16) & 0x3) | 0x8).toString(16) + hash.slice(17, 20),  // variant
+    hash.slice(20, 32),
+  ].join('-');
+}
 
 export async function isAvailable() {
   try {
@@ -25,9 +38,9 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
     '--max-turns', '30',
   ];
 
-  // Reuse session for continuity
+  // Reuse session for continuity (Claude Code requires UUID format)
   if (sessionId) {
-    args.push('--session-id', sessionId);
+    args.push('--session-id', toUUID(sessionId));
   }
 
   console.log(`[Claude Code] Spawning for project: ${projectName}, session: ${sessionId}`);
