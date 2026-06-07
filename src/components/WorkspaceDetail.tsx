@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, Layers, FolderOpen, Plus, Trash2, Zap, Search } from 'lucide-react'
+import { ArrowLeft, Layers, FolderOpen, Plus, Trash2, Zap, Search, ChevronDown, ChevronRight } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
@@ -38,12 +38,20 @@ interface Workspace {
   projects: Project[]
 }
 
+interface AnalysisDetail {
+  project_id: number
+  project_name?: string
+  answer: string
+}
+
 interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: string
   isComplete?: boolean
+  sessionId?: number
+  analyses?: AnalysisDetail[]
 }
 
 interface Props {
@@ -60,6 +68,7 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
   const [inputValue, setInputValue] = useState('')
   const [showAddProject, setShowAddProject] = useState(false)
   const [search, setSearch] = useState('')
+  const [expandedSessions, setExpandedSessions] = useState<Record<number, boolean>>({})
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -81,6 +90,12 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
       if (sessions.length > 0 && messages.length === 0) {
         const chatMessages: ChatMessage[] = []
         for (const s of sessions.reverse()) {
+          // 获取项目名称映射
+          const analysesWithNames = s.analyses?.map((a: any) => {
+            const proj = allProjects.find(p => p.id === a.project_id)
+            return { ...a, project_name: proj?.name || `项目#${a.project_id}` }
+          }) || []
+
           chatMessages.push({
             id: `session-q-${s.id}`,
             role: 'user',
@@ -91,9 +106,11 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
           chatMessages.push({
             id: `session-a-${s.id}`,
             role: 'assistant',
-            content: s.summary || s.analyses?.map((a: any) => `### ${a.project_id}\n${a.answer}`).join('\n\n') || '',
+            content: s.summary || '',
             timestamp: s.created_at,
             isComplete: true,
+            sessionId: s.id,
+            analyses: analysesWithNames,
           })
         }
         setMessages(chatMessages)
@@ -348,24 +365,74 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                           <span className="text-[10px] text-gray-400">思考中...</span>
                         </div>
                       ) : msg.content ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none
-                          [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
-                          [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
-                          [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
-                          [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
-                          [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
-                          [&_li]:text-[12px] [&_li]:my-0.5
-                          [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono
-                          [&_pre]:bg-gray-900 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto
-                          [&_pre_code]:bg-transparent [&_pre_code]:text-gray-200
-                          [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
-                          [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
-                          [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
-                          [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 [&_blockquote]:italic
-                        ">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                            {msg.content}
-                          </ReactMarkdown>
+                        <div>
+                          {/* 汇总内容 */}
+                          <div className="prose prose-sm dark:prose-invert max-w-none
+                            [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
+                            [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
+                            [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
+                            [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
+                            [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
+                            [&_li]:text-[12px] [&_li]:my-0.5
+                            [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono
+                            [&_pre]:bg-gray-900 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto
+                            [&_pre_code]:bg-transparent [&_pre_code]:text-gray-200
+                            [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
+                            [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
+                            [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
+                            [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 [&_blockquote]:italic
+                          ">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
+
+                          {/* 各项目独立分析详情 */}
+                          {msg.analyses && msg.analyses.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                              <button
+                                onClick={() => setExpandedSessions(prev => ({ ...prev, [msg.sessionId!]: !prev[msg.sessionId!] }))}
+                                className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition cursor-pointer"
+                              >
+                                {expandedSessions[msg.sessionId!] ? (
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                ) : (
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                )}
+                                <span>查看各项目独立分析 ({msg.analyses.length})</span>
+                              </button>
+
+                              {expandedSessions[msg.sessionId!] && (
+                                <div className="mt-2 space-y-2">
+                                  {msg.analyses.map((analysis, idx) => (
+                                    <details key={idx} className="group">
+                                      <summary className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg cursor-pointer text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition">
+                                        <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
+                                        <span>{analysis.project_name}</span>
+                                      </summary>
+                                      <div className="mt-2 px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                                        <div className="prose prose-sm dark:prose-invert max-w-none text-[11px]
+                                          [&_h1]:text-xs [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-1
+                                          [&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1
+                                          [&_p]:text-[11px] [&_p]:my-1 [&_p]:leading-relaxed
+                                          [&_ul]:list-disc [&_ul]:pl-3 [&_ul]:my-1 [&_ul]:text-[11px]
+                                          [&_ol]:list-decimal [&_ol]:pl-3 [&_ol]:my-1 [&_ol]:text-[11px]
+                                          [&_li]:text-[11px] [&_li]:my-0.5
+                                          [&_code]:bg-gray-100 dark:[&_code]:bg-gray-800 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[10px]
+                                          [&_pre]:bg-gray-900 [&_pre]:p-2 [&_pre]:rounded [&_pre]:my-2 [&_pre]:text-[10px]
+                                          [&_table]:text-[10px] [&_th]:px-1.5 [&_th]:py-1 [&_td]:px-1.5 [&_td]:py-1
+                                        ">
+                                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                                            {analysis.answer}
+                                          </ReactMarkdown>
+                                        </div>
+                                      </div>
+                                    </details>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 py-1">
