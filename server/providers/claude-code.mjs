@@ -113,6 +113,7 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
             if (block?.type === 'tool_use') {
               const idx = streamEvent.index ?? toolIndex++;
               activeTools.set(idx, { name: block.name, input: '' });
+              console.log(`[Claude Code] tool_use start: ${block.name}`);
               onTool({
                 tool: block.name,
                 label: block.name,
@@ -122,6 +123,7 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
           } else if (streamEvent?.type === 'content_block_delta') {
             const delta = streamEvent.delta;
             if (delta?.type === 'text_delta' && delta.text) {
+              console.log(`[Claude Code] text_delta: ${delta.text.slice(0, 100)}`);
               currentContent += delta.text;
               onChunk(delta.text);
             } else if (delta?.type === 'thinking_delta' && delta.thinking) {
@@ -144,6 +146,7 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
                 const input = JSON.parse(tool.input);
                 label = formatToolLabel(tool.name, input);
               } catch {}
+              console.log(`[Claude Code] tool_use done: ${label}`);
               onTool({ tool: tool.name, label, done: true });
               activeTools.delete(idx);
             }
