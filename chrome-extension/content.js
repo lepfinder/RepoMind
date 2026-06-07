@@ -191,8 +191,6 @@ async function injectButton() {
     container.appendChild(li);
   }
 }
-  container.appendChild(li);
-}
 
 // GitHub 是 SPA，需要监听 URL 变化
 let lastUrl = location.href;
