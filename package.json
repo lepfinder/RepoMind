@@ -6,7 +6,7 @@
   "scripts": {
     "scan": "node scripts/scan.mjs",
     "server": "node --watch server/index.mjs",
-    "dev": "concurrently --raw --names \"vite,server,scan\" \"vite --port 3000\" \"node server/index.mjs\" \"npm run scan\"",
+    "dev": "concurrently \"vite --port 3000\" \"node server/index.mjs\" \"npm run scan\"",
     "build": "npm run scan && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
