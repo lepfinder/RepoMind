@@ -40,7 +40,7 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 app.use((req, res, next) => {
-  console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+  process.stdout.write(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}\n`);
   next();
 });
 
