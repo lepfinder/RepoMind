@@ -215,8 +215,18 @@ app.get('/api/projects/:name/file', (req, res) => {
       return res.status(400).json({ error: 'File is too large to display (limit 1MB)' });
     }
 
-    const content = fs.readFileSync(targetPath, 'utf-8');
-    res.json({ content, size: stat.size });
+    // 检查是否为图片文件
+    const ext = path.extname(targetPath).toLowerCase();
+    const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp'];
+    if (imageExts.includes(ext)) {
+      // 读取为 base64
+      const content = fs.readFileSync(targetPath);
+      const base64 = content.toString('base64');
+      res.json({ content: base64, size: stat.size, isImage: true });
+    } else {
+      const content = fs.readFileSync(targetPath, 'utf-8');
+      res.json({ content, size: stat.size });
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

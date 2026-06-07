@@ -462,6 +462,11 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
     return filename.toLowerCase().endsWith('.md')
   }
 
+  const isImageFile = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase() || ''
+    return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'].includes(ext)
+  }
+
   const getLanguageFromFilename = (filename: string): string => {
     const ext = filename.split('.').pop()?.toLowerCase() || ''
     const mapping: Record<string, string> = {
@@ -892,6 +897,32 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
                     <div className="text-center py-20">
                       <div className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                       <p className="text-gray-400 text-xs mt-3">读取文件内容中...</p>
+                    </div>
+                  ) : isImageFile(selectedFile.name) ? (
+                    // 图片预览
+                    <div className="text-center">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <FileCode className="w-3.5 h-3.5 text-blue-400" />
+                          <span className="text-gray-600 dark:text-gray-400 text-[10px] font-semibold tracking-wide truncate max-w-[250px] sm:max-w-[400px]">
+                            {selectedFile.path}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedFile(null)
+                            setSelectedFileContent('')
+                          }}
+                          className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-[9px] transition font-sans border border-gray-200 dark:border-gray-700 active:scale-95"
+                        >
+                          返回 README
+                        </button>
+                      </div>
+                      <img
+                        src={`data:image/${selectedFile.name.split('.').pop()};base64,${selectedFileContent}`}
+                        alt={selectedFile.name}
+                        className="max-w-full max-h-[500px] mx-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
+                      />
                     </div>
                   ) : isMarkdownFile(selectedFile.name) ? (
                     // Markdown 渲染
