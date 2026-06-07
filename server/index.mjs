@@ -776,8 +776,10 @@ app.post('/api/workspaces/:id/analyze', async (req, res) => {
 5. 用中文回答`;
 
     const analyzeProject = async (project) => {
-      const sessionId = `ws-${workspaceId}-${project.name}`;
+      // 统一使用项目详情页的 sessionId，保持上下文关联
+      const sessionId = `github-index-${project.name}`;
       const sysPrompt = `你是项目分析助手。项目: ${project.name}，路径: ${project.local_path}。你有文件读取权限。`;
+      const userMessage = analysisPrompt.replace('${name}', project.name);
       let content = '';
 
       try {
@@ -785,7 +787,7 @@ app.post('/api/workspaces/:id/analyze', async (req, res) => {
           projectPath: project.local_path,
           projectName: project.name,
           systemPrompt: sysPrompt,
-          userMessage: analysisPrompt.replace('${name}', project.name),
+          userMessage,
           sessionId,
           abortSignal: ac.signal,
           onChunk: (text) => { content += text; },
@@ -793,6 +795,8 @@ app.post('/api/workspaces/:id/analyze', async (req, res) => {
           onError: () => {},
           onDone: () => {},
         });
+        // 同步写入项目的 analysis 表，这样项目详情页也能看到
+        insertAnalysis.run(project.id, `[工作空间] ${question || '对比分析'}`, content, `provider: ${provider.name}`);
         return { project: project.name, projectId: project.id, content, error: null };
       } catch (err) {
         return { project: project.name, projectId: project.id, content: '', error: err.message };
@@ -837,7 +841,7 @@ ${summaries}
       projectName: workspace.name,
       systemPrompt: '你是技术架构对比分析专家，擅长总结和对比不同项目的设计差异。',
       userMessage: summaryPrompt,
-      sessionId: `ws-${workspaceId}-summary`,
+      sessionId: `github-index-${workspace.name}`,
       abortSignal: ac.signal,
       onChunk: (text) => {
         summaryContent += text;
