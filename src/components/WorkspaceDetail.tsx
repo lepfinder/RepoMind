@@ -7,13 +7,23 @@ import rehypeRaw from 'rehype-raw'
 const API_BASE = 'http://localhost:3001'
 
 const TOOL_EMOJI: Record<string, string> = {
+  // Hermes tools
   read_file: '📖', search_files: '🔍', terminal: '⚡',
   execute_code: '🐍', browser_navigate: '🌐', browser_snapshot: '👁️',
+  // Claude Code tools
+  Read: '📖', Write: '✏️', Edit: '✏️', Bash: '⚡',
+  Glob: '🔍', Grep: '🔍', WebFetch: '🌐', WebSearch: '🔍',
+  Agent: '🤖', NotebookEdit: '📓',
 }
 
 const TOOL_VERB: Record<string, string> = {
+  // Hermes tools
   read_file: 'read', search_files: 'search', terminal: 'run',
   execute_code: 'exec', browser_navigate: 'goto', browser_snapshot: 'snap',
+  // Claude Code tools
+  Read: 'read', Write: 'write', Edit: 'edit', Bash: 'run',
+  Glob: 'search', Grep: 'grep', WebFetch: 'fetch', WebSearch: 'search',
+  Agent: 'agent', NotebookEdit: 'edit',
 }
 
 function toolIcon(tool: string) { return TOOL_EMOJI[tool] || '🔧' }
@@ -233,8 +243,8 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
               setActivities(prev => [...prev, { icon, text: `${data.project} ${data.error ? '失败' : '完成'}` }])
             } else if (data.status === 'tool') {
               const tool = data.tool || ''
-              const label = data.message || ''
-              if (!data.done && label && label !== tool) {
+              const label = data.label || ''
+              if (!data.done && label) {
                 setActivities(prev => [...prev, { icon: toolIcon(tool), text: `${toolVerb(tool)}  ${shortLabel(label)}` }])
               }
             } else if (data.status === 'error') {

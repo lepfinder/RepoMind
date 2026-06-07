@@ -16,6 +16,33 @@ function toUUID(str) {
   ].join('-');
 }
 
+// Format tool name + input into a human-readable label
+function formatToolLabel(toolName, input) {
+  if (!input) return toolName;
+  switch (toolName) {
+    case 'Read':
+    case 'Write':
+    case 'Edit':
+      return input.file_path ? `${toolName} ${input.file_path}` : toolName;
+    case 'Bash':
+      return input.command ? `Bash ${input.command}` : toolName;
+    case 'Glob':
+      return input.pattern ? `Glob ${input.pattern}` : toolName;
+    case 'Grep':
+      return input.pattern ? `Grep ${input.pattern}` : toolName;
+    case 'WebFetch':
+      return input.url ? `Fetch ${input.url}` : toolName;
+    case 'WebSearch':
+      return input.query ? `Search ${input.query}` : toolName;
+    case 'Agent':
+      return input.prompt ? `Agent ${String(input.prompt).slice(0, 60)}` : toolName;
+    case 'NotebookEdit':
+      return input.notebook_path ? `Edit ${input.notebook_path}` : toolName;
+    default:
+      return toolName;
+  }
+}
+
 export async function isAvailable() {
   try {
     const { execSync } = await import('child_process');
@@ -58,6 +85,9 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
 
   let currentContent = '';
   let buffer = '';
+  // Track tool_use blocks for rich activity reporting
+  const activeTools = new Map(); // index -> { name, input }
+  let toolIndex = 0;
 
   child.stderr.on('data', (chunk) => {
     console.error('[Claude Code stderr]', chunk.toString().trim());
@@ -78,20 +108,42 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
 
         if (event.type === 'stream_event') {
           const streamEvent = event.event;
-          if (streamEvent?.type === 'content_block_delta') {
-            const delta = streamEvent.delta;
-            if (delta?.type === 'text_delta' && delta.text) {
-              currentContent += delta.text;
-              onChunk(delta.text);
-            }
-          } else if (streamEvent?.type === 'content_block_start') {
+          if (streamEvent?.type === 'content_block_start') {
             const block = streamEvent.content_block;
             if (block?.type === 'tool_use') {
+              const idx = streamEvent.index ?? toolIndex++;
+              activeTools.set(idx, { name: block.name, input: '' });
               onTool({
                 tool: block.name,
                 label: block.name,
                 done: false,
               });
+            }
+          } else if (streamEvent?.type === 'content_block_delta') {
+            const delta = streamEvent.delta;
+            if (delta?.type === 'text_delta' && delta.text) {
+              currentContent += delta.text;
+              onChunk(delta.text);
+            } else if (delta?.type === 'input_json_delta' && delta.partial_json) {
+              // Accumulate tool input for richer activity label
+              const idx = streamEvent.index;
+              const tool = activeTools.get(idx);
+              if (tool) {
+                tool.input += delta.partial_json;
+              }
+            }
+          } else if (streamEvent?.type === 'content_block_stop') {
+            const idx = streamEvent.index;
+            const tool = activeTools.get(idx);
+            if (tool) {
+              // Send final label with input details
+              let label = tool.name;
+              try {
+                const input = JSON.parse(tool.input);
+                label = formatToolLabel(tool.name, input);
+              } catch {}
+              onTool({ tool: tool.name, label, done: true });
+              activeTools.delete(idx);
             }
           }
         } else if (event.type === 'assistant') {
@@ -100,10 +152,8 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
           if (Array.isArray(content)) {
             for (const block of content) {
               if (block.type === 'tool_use') {
-                const label = block.input
-                  ? `${block.name} ${JSON.stringify(block.input).slice(0, 80)}`
-                  : block.name;
-                onTool({ tool: block.name, label, done: false });
+                const label = formatToolLabel(block.name, block.input);
+                onTool({ tool: block.name, label, done: true });
               } else if (block.type === 'text' && block.text) {
                 // In non-streaming mode, text comes as complete blocks
                 // Only add if not already streamed via deltas

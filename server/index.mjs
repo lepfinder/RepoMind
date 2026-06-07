@@ -791,7 +791,12 @@ app.post('/api/workspaces/:id/analyze', async (req, res) => {
           sessionId,
           abortSignal: ac.signal,
           onChunk: (text) => { content += text; },
-          onTool: () => {},
+          onTool: (toolInfo) => {
+            try {
+              const label = toolInfo.label ? `[${project.name}] ${toolInfo.label}` : `[${project.name}] ${toolInfo.tool}`;
+              res.write(`data: ${JSON.stringify({ status: 'tool', ...toolInfo, label })}\n\n`);
+            } catch {}
+          },
           onError: () => {},
           onDone: () => {},
         });
@@ -847,7 +852,9 @@ ${summaries}
         summaryContent += text;
         try { res.write(`data: ${JSON.stringify({ status: 'chunk', content: text })}\n\n`); } catch {}
       },
-      onTool: () => {},
+      onTool: (toolInfo) => {
+        try { res.write(`data: ${JSON.stringify({ status: 'tool', ...toolInfo })}\n\n`); } catch {}
+      },
       onError: () => {},
       onDone: () => {},
     });

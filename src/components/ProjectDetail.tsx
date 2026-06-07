@@ -129,12 +129,22 @@ const darkMarkdownComponents = {
 }
 
 const TOOL_EMOJI: Record<string, string> = {
+  // Hermes tools
   read_file: '📖', search_files: '🔍', terminal: '⚡',
   execute_code: '🐍', browser_navigate: '🌐', browser_snapshot: '👁️',
+  // Claude Code tools
+  Read: '📖', Write: '✏️', Edit: '✏️', Bash: '⚡',
+  Glob: '🔍', Grep: '🔍', WebFetch: '🌐', WebSearch: '🔍',
+  Agent: '🤖', NotebookEdit: '📓',
 }
 const TOOL_VERB: Record<string, string> = {
+  // Hermes tools
   read_file: 'read', search_files: 'search', terminal: 'run',
   execute_code: 'exec', browser_navigate: 'goto', browser_snapshot: 'snap',
+  // Claude Code tools
+  Read: 'read', Write: 'write', Edit: 'edit', Bash: 'run',
+  Glob: 'search', Grep: 'grep', WebFetch: 'fetch', WebSearch: 'search',
+  Agent: 'agent', NotebookEdit: 'edit',
 }
 
 function toolIcon(tool: string) { return TOOL_EMOJI[tool] || '🔧' }
@@ -426,12 +436,10 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
                   prev.map(m => m.id === assistantId ? { ...m, content: accumulated } : m)
                 )
               } else if (data.status === 'tool') {
-                console.log('[Frontend]', data)
                 const tool = data.tool || ''
-                const label = data.message || ''
+                const label = data.label || ''
                 const icon = toolIcon(tool)
-                // 只显示 running 事件（带实际文件路径/命令），跳过 completed
-                if (!data.done && label && label !== tool) {
+                if (!data.done && label) {
                   setActivities(prev => [...prev, { icon, text: `${toolVerb(tool)}  ${shortLabel(label)}` }])
                 }
               } else if (data.status === 'thinking') {
