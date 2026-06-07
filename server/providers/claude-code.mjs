@@ -124,6 +124,8 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
             if (delta?.type === 'text_delta' && delta.text) {
               currentContent += delta.text;
               onChunk(delta.text);
+            } else if (delta?.type === 'thinking_delta' && delta.thinking) {
+              onChunk(delta.thinking);
             } else if (delta?.type === 'input_json_delta' && delta.partial_json) {
               // Accumulate tool input for richer activity label
               const idx = streamEvent.index;
@@ -161,6 +163,8 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
                   currentContent += block.text;
                   onChunk(block.text);
                 }
+              } else if (block.type === 'thinking' && block.thinking) {
+                onChunk(block.thinking);
               }
             }
           }
