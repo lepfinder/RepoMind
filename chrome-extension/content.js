@@ -105,7 +105,7 @@ async function handleImport(btn) {
             return;
           } else if (data.status === 'error') {
             // 已存在的项目显示为"已导入"而非错误
-            if (data.message && data.message.includes('已存在')) {
+            if (data.message && (data.message.includes('已存在') || data.message.includes('物理冲突') || data.message.includes('无法重复导入'))) {
               setBtnState(btn, 'success');
             } else {
               setBtnState(btn, 'error', data.message);
