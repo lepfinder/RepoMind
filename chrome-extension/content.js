@@ -104,7 +104,12 @@ async function handleImport(btn) {
             setBtnState(btn, 'success');
             return;
           } else if (data.status === 'error') {
-            setBtnState(btn, 'error', data.message);
+            // 已存在的项目显示为"已导入"而非错误
+            if (data.message && data.message.includes('已存在')) {
+              setBtnState(btn, 'success');
+            } else {
+              setBtnState(btn, 'error', data.message);
+            }
             return;
           } else {
             setBtnState(btn, 'loading', statusMap[data.status] || data.message || '处理中...');
