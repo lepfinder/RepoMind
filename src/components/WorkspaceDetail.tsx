@@ -129,9 +129,14 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
 
   useEffect(() => {
     loadWorkspace()
-    loadHistory()
     loadAllProjects()
   }, [workspaceId])
+
+  useEffect(() => {
+    if (allProjects.length > 0) {
+      loadHistory()
+    }
+  }, [allProjects, workspaceId])
 
   useEffect(() => {
     return () => { abortRef.current?.abort() }
