@@ -88,6 +88,7 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
   // Track tool_use blocks for rich activity reporting
   const activeTools = new Map(); // index -> { name, input }
   let toolIndex = 0;
+  let thinkingOpen = false;
 
   child.stderr.on('data', (chunk) => {
     console.error('[Claude Code stderr]', chunk.toString().trim());
@@ -111,6 +112,10 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
           if (streamEvent?.type === 'content_block_start') {
             const block = streamEvent.content_block;
             if (block?.type === 'tool_use') {
+              if (thinkingOpen) {
+                thinkingOpen = false;
+                onChunk('\n\n</details>\n\n');
+              }
               const idx = streamEvent.index ?? toolIndex++;
               activeTools.set(idx, { name: block.name, input: '' });
               console.log(`[Claude Code] tool_use start: ${block.name}`);
@@ -123,10 +128,17 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
           } else if (streamEvent?.type === 'content_block_delta') {
             const delta = streamEvent.delta;
             if (delta?.type === 'text_delta' && delta.text) {
-              console.log(`[Claude Code] text_delta: ${delta.text.slice(0, 100)}`);
+              if (thinkingOpen) {
+                thinkingOpen = false;
+                onChunk('\n\n</details>\n\n');
+              }
               currentContent += delta.text;
               onChunk(delta.text);
             } else if (delta?.type === 'thinking_delta' && delta.thinking) {
+              if (!thinkingOpen) {
+                thinkingOpen = true;
+                onChunk('\n\n<details class="thinking-block"><summary>thinking</summary>\n\n');
+              }
               onChunk(delta.thinking);
             } else if (delta?.type === 'input_json_delta' && delta.partial_json) {
               // Accumulate tool input for richer activity label
@@ -147,7 +159,7 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
                 label = formatToolLabel(tool.name, input);
               } catch {}
               console.log(`[Claude Code] tool_use done: ${label}`);
-              onTool({ tool: tool.name, label, done: true });
+              onTool({ tool: tool.name, label, done: false });
               activeTools.delete(idx);
             }
           }
@@ -157,9 +169,17 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
           if (Array.isArray(content)) {
             for (const block of content) {
               if (block.type === 'tool_use') {
+                if (thinkingOpen) {
+                  thinkingOpen = false;
+                  onChunk('\n\n</details>\n\n');
+                }
                 const label = formatToolLabel(block.name, block.input);
                 onTool({ tool: block.name, label, done: true });
               } else if (block.type === 'text' && block.text) {
+                if (thinkingOpen) {
+                  thinkingOpen = false;
+                  onChunk('\n\n</details>\n\n');
+                }
                 // In non-streaming mode, text comes as complete blocks
                 // Only add if not already streamed via deltas
                 if (!currentContent.includes(block.text)) {
@@ -167,6 +187,10 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
                   onChunk(block.text);
                 }
               } else if (block.type === 'thinking' && block.thinking) {
+                if (!thinkingOpen) {
+                  thinkingOpen = true;
+                  onChunk('\n\n<details class="thinking-block"><summary>thinking</summary>\n\n');
+                }
                 onChunk(block.thinking);
               }
             }

@@ -1,3 +1,16 @@
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
+
+details.thinking-block {
+  @apply bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg my-2 px-3 py-1 text-xs;
+}
+details.thinking-block > summary {
+  @apply cursor-pointer text-gray-400 dark:text-gray-500 select-none font-medium;
+}
+details.thinking-block[open] > summary {
+  @apply mb-2;
+}
+details.thinking-block p {
+  @apply text-gray-500 dark:text-gray-400;
+}
