@@ -90,6 +90,8 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
   let toolIndex = 0;
   let thinkingOpen = false;
   let hasReceivedData = false;
+  let resolveExit;
+  const exitPromise = new Promise((resolve) => { resolveExit = resolve; });
 
   // 心跳：在 Claude Code 启动静默期间定期发送 thinking 状态
   const heartbeat = setInterval(() => {
@@ -98,137 +100,127 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
     }
   }, 3000);
 
+  function processLine(trimmed) {
+    if (!trimmed) return;
+
+    console.log(`[Claude Code raw] ${trimmed.slice(0, 200)}`);
+
+    try {
+      const event = JSON.parse(trimmed);
+      hasReceivedData = true;
+
+      if (event.type === 'stream_event') {
+        console.log(`[Claude Code] stream_event: ${event.event?.type} | index: ${event.event?.index} | block_type: ${event.event?.content_block?.type || event.event?.delta?.type || '-'}`);
+      } else {
+        console.log(`[Claude Code] event: ${event.type}`);
+      }
+
+      if (event.type === 'stream_event') {
+        const streamEvent = event.event;
+        if (streamEvent?.type === 'content_block_start') {
+          const block = streamEvent.content_block;
+          if (block?.type === 'tool_use') {
+            if (thinkingOpen) {
+              thinkingOpen = false;
+              onChunk('\n\n</details>\n\n');
+            }
+            const idx = streamEvent.index ?? toolIndex++;
+            activeTools.set(idx, { name: block.name, input: '' });
+            console.log(`[Claude Code] tool_use start: ${block.name}`);
+            onTool({ tool: block.name, label: block.name, done: false });
+          }
+        } else if (streamEvent?.type === 'content_block_delta') {
+          const delta = streamEvent.delta;
+          if (delta?.type === 'text_delta' && delta.text) {
+            if (thinkingOpen) {
+              thinkingOpen = false;
+              onChunk('\n\n</details>\n\n');
+            }
+            currentContent += delta.text;
+            onChunk(delta.text);
+          } else if (delta?.type === 'thinking_delta' && delta.thinking) {
+            if (!thinkingOpen) {
+              thinkingOpen = true;
+              onChunk('\n\n<details class="thinking-block"><summary>thinking</summary>\n\n');
+            }
+            onChunk(delta.thinking);
+          } else if (delta?.type === 'input_json_delta' && delta.partial_json) {
+            const idx = streamEvent.index;
+            const tool = activeTools.get(idx);
+            if (tool) tool.input += delta.partial_json;
+          }
+        } else if (streamEvent?.type === 'content_block_stop') {
+          const idx = streamEvent.index;
+          const tool = activeTools.get(idx);
+          if (tool) {
+            let label = tool.name;
+            try {
+              const input = JSON.parse(tool.input);
+              label = formatToolLabel(tool.name, input);
+            } catch {}
+            console.log(`[Claude Code] tool_use done: ${label}`);
+            onTool({ tool: tool.name, label, done: false });
+            activeTools.delete(idx);
+          }
+        }
+      } else if (event.type === 'assistant') {
+        const content = event.message?.content;
+        if (Array.isArray(content)) {
+          for (const block of content) {
+            if (block.type === 'tool_use') {
+              if (thinkingOpen) {
+                thinkingOpen = false;
+                onChunk('\n\n</details>\n\n');
+              }
+              const label = formatToolLabel(block.name, block.input);
+              onTool({ tool: block.name, label, done: true });
+            } else if (block.type === 'text' && block.text) {
+              if (thinkingOpen) {
+                thinkingOpen = false;
+                onChunk('\n\n</details>\n\n');
+              }
+              if (!currentContent.includes(block.text)) {
+                currentContent += block.text;
+                onChunk(block.text);
+              }
+            } else if (block.type === 'thinking' && block.thinking) {
+              if (!thinkingOpen) {
+                thinkingOpen = true;
+                onChunk('\n\n<details class="thinking-block"><summary>thinking</summary>\n\n');
+              }
+              onChunk(block.thinking);
+            }
+          }
+        }
+      } else if (event.type === 'result') {
+        if (event.is_error) {
+          onError(event.result || 'Claude Code analysis failed');
+        }
+      }
+    } catch {}
+  }
+
+  child.stdout.on('data', (chunk) => {
+    buffer += chunk.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      processLine(line.trim());
+    }
+  });
+
   child.stderr.on('data', (chunk) => {
     const msg = chunk.toString().trim();
     if (msg) console.error('[Claude Code stderr]', msg);
   });
 
-  // Parse JSONL output
-  for await (const chunk of child.stdout) {
-    buffer += chunk.toString();
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-
-      // Debug: log raw output (truncated)
-      console.log(`[Claude Code raw] ${trimmed.slice(0, 200)}`);
-
-      try {
-        const event = JSON.parse(trimmed);
-        hasReceivedData = true;
-
-        // Debug: log all event types
-        if (event.type === 'stream_event') {
-          console.log(`[Claude Code] stream_event: ${event.event?.type} | index: ${event.event?.index} | block_type: ${event.event?.content_block?.type || event.event?.delta?.type || '-'}`);
-        } else {
-          console.log(`[Claude Code] event: ${event.type}`);
-        }
-
-        if (event.type === 'stream_event') {
-          const streamEvent = event.event;
-          if (streamEvent?.type === 'content_block_start') {
-            const block = streamEvent.content_block;
-            if (block?.type === 'tool_use') {
-              if (thinkingOpen) {
-                thinkingOpen = false;
-                onChunk('\n\n</details>\n\n');
-              }
-              const idx = streamEvent.index ?? toolIndex++;
-              activeTools.set(idx, { name: block.name, input: '' });
-              console.log(`[Claude Code] tool_use start: ${block.name}`);
-              onTool({
-                tool: block.name,
-                label: block.name,
-                done: false,
-              });
-            }
-          } else if (streamEvent?.type === 'content_block_delta') {
-            const delta = streamEvent.delta;
-            if (delta?.type === 'text_delta' && delta.text) {
-              if (thinkingOpen) {
-                thinkingOpen = false;
-                onChunk('\n\n</details>\n\n');
-              }
-              currentContent += delta.text;
-              onChunk(delta.text);
-            } else if (delta?.type === 'thinking_delta' && delta.thinking) {
-              if (!thinkingOpen) {
-                thinkingOpen = true;
-                onChunk('\n\n<details class="thinking-block"><summary>thinking</summary>\n\n');
-              }
-              onChunk(delta.thinking);
-            } else if (delta?.type === 'input_json_delta' && delta.partial_json) {
-              // Accumulate tool input for richer activity label
-              const idx = streamEvent.index;
-              const tool = activeTools.get(idx);
-              if (tool) {
-                tool.input += delta.partial_json;
-              }
-            }
-          } else if (streamEvent?.type === 'content_block_stop') {
-            const idx = streamEvent.index;
-            const tool = activeTools.get(idx);
-            if (tool) {
-              // Send final label with input details
-              let label = tool.name;
-              try {
-                const input = JSON.parse(tool.input);
-                label = formatToolLabel(tool.name, input);
-              } catch {}
-              console.log(`[Claude Code] tool_use done: ${label}`);
-              onTool({ tool: tool.name, label, done: false });
-              activeTools.delete(idx);
-            }
-          }
-        } else if (event.type === 'assistant') {
-          // Completed assistant turn — extract tool_use blocks
-          const content = event.message?.content;
-          if (Array.isArray(content)) {
-            for (const block of content) {
-              if (block.type === 'tool_use') {
-                if (thinkingOpen) {
-                  thinkingOpen = false;
-                  onChunk('\n\n</details>\n\n');
-                }
-                const label = formatToolLabel(block.name, block.input);
-                onTool({ tool: block.name, label, done: true });
-              } else if (block.type === 'text' && block.text) {
-                if (thinkingOpen) {
-                  thinkingOpen = false;
-                  onChunk('\n\n</details>\n\n');
-                }
-                // In non-streaming mode, text comes as complete blocks
-                // Only add if not already streamed via deltas
-                if (!currentContent.includes(block.text)) {
-                  currentContent += block.text;
-                  onChunk(block.text);
-                }
-              } else if (block.type === 'thinking' && block.thinking) {
-                if (!thinkingOpen) {
-                  thinkingOpen = true;
-                  onChunk('\n\n<details class="thinking-block"><summary>thinking</summary>\n\n');
-                }
-                onChunk(block.thinking);
-              }
-            }
-          }
-        } else if (event.type === 'result') {
-          if (event.is_error) {
-            onError(event.result || 'Claude Code analysis failed');
-          }
-          // result event signals completion — handled below
-        }
-      } catch {}
-    }
-  }
-
-  // Wait for process to exit
-  await new Promise((resolve) => {
-    child.on('close', resolve);
+  child.on('close', () => {
+    // Process remaining buffer
+    if (buffer.trim()) processLine(buffer.trim());
+    resolveExit();
   });
+
+  await exitPromise;
 
   clearInterval(heartbeat);
   onDone();
