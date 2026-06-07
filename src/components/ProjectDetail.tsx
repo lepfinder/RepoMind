@@ -438,7 +438,7 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
                 setActivities(prev => [...prev, { icon: '🤔', text: data.message || 'thinking…' }])
               } else if (data.status === 'error') {
                 setMessages(prev =>
-                  prev.map(m => m.id === assistantId ? { ...m, content: `分析出错: ${data.message}` } : m)
+                  prev.map(m => m.id === assistantId ? { ...m, content: `分析出错: ${data.message}`, isComplete: true } : m)
                 )
               }
             } catch { /* skip */ }
@@ -447,7 +447,7 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
       }
     } catch (error: any) {
       setMessages(prev =>
-        prev.map(m => m.id === assistantId ? { ...m, content: `请求失败: ${error.message}` } : m)
+        prev.map(m => m.id === assistantId ? { ...m, content: `请求失败: ${error.message}`, isComplete: true } : m)
       )
     } finally {
       setAnalyzing(false)

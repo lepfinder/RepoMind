@@ -238,7 +238,7 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                 setActivities(prev => [...prev, { icon: toolIcon(tool), text: `${toolVerb(tool)}  ${shortLabel(label)}` }])
               }
             } else if (data.status === 'error') {
-              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: `分析出错: ${data.message}` } : m))
+              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: `分析出错: ${data.message}`, isComplete: true } : m))
             }
           } catch {}
         }
