@@ -84,7 +84,7 @@ export default function WorkspaceList({ onBack, onOpenWorkspace }: Props) {
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('确定删除这个工作空间？')) return
+    if (!confirm('确定删除这个项目组？')) return
     try {
       await fetch(`${API_BASE}/api/workspaces/${id}`, { method: 'DELETE' })
       loadWorkspaces()
@@ -111,11 +111,11 @@ export default function WorkspaceList({ onBack, onOpenWorkspace }: Props) {
             <span>返回</span>
           </button>
           <Layers className="w-5 h-5 text-purple-500" />
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">工作空间</h1>
-          <span className="text-sm text-gray-500">{workspaces.length} 个空间</span>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">项目组</h1>
+          <span className="text-sm text-gray-500">{workspaces.length} 个项目组</span>
           <button onClick={() => setShowCreate(true)} className="ml-auto px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-semibold transition flex items-center gap-1.5 active:scale-95 shadow-sm cursor-pointer">
             <Plus className="w-4 h-4" />
-            创建空间
+            创建项目组
           </button>
         </div>
       </header>
@@ -124,10 +124,10 @@ export default function WorkspaceList({ onBack, onOpenWorkspace }: Props) {
         {workspaces.length === 0 ? (
           <div className="text-center py-20">
             <Layers className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
-            <p className="text-gray-400 text-lg mb-2">还没有工作空间</p>
-            <p className="text-gray-400 text-sm mb-4">创建工作空间，将多个同类项目组合进行对比分析</p>
+            <p className="text-gray-400 text-lg mb-2">还没有项目组</p>
+            <p className="text-gray-400 text-sm mb-4">创建项目组，将多个同类项目组合进行对比分析</p>
             <button onClick={() => setShowCreate(true)} className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-semibold transition active:scale-95 shadow-sm cursor-pointer">
-              创建第一个工作空间
+              创建第一个项目组
             </button>
           </div>
         ) : (
@@ -165,14 +165,14 @@ export default function WorkspaceList({ onBack, onOpenWorkspace }: Props) {
         )}
       </main>
 
-      {/* 创建工作空间弹窗 */}
+      {/* 创建项目组弹窗 */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl max-w-lg w-full shadow-2xl p-6 relative">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Layers className="w-5 h-5 text-purple-500" />
-                创建工作空间
+                创建项目组
               </h3>
               <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -186,7 +186,7 @@ export default function WorkspaceList({ onBack, onOpenWorkspace }: Props) {
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 block mb-1">描述（可选）</label>
-                <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="简要描述这个工作空间的用途" className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="简要描述这个项目组的用途" className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 block mb-1">选择项目（可多选，后续可增删）</label>

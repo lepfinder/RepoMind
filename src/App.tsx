@@ -313,10 +313,10 @@ export default function App() {
               <button
                 onClick={() => setView('workspaces')}
                 className="px-3.5 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center shadow-sm active:scale-95 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer"
-                title="工作空间 - 跨项目对比分析"
+                title="项目组 - 跨项目对比分析"
               >
                 <Layers className="w-4 h-4 mr-1.5" />
-                空间
+                项目组
               </button>
               <a
                 href="https://github.com/trending"
@@ -425,7 +425,7 @@ export default function App() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Layers className="w-5 h-5 text-blue-500" />
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">工作空间</h2>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">项目组</h2>
               </div>
               <button
                 onClick={() => setView('workspaces')}

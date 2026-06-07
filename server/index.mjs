@@ -658,7 +658,7 @@ app.post('/api/scan', (req, res) => {
 
 // ============ Workspace API ============
 
-// GET /api/workspaces - 列出所有工作空间
+// GET /api/workspaces - 列出所有项目组
 app.get('/api/workspaces', (req, res) => {
   try {
     const workspaces = getAllWorkspaces.all();
@@ -672,7 +672,7 @@ app.get('/api/workspaces', (req, res) => {
   }
 });
 
-// POST /api/workspaces - 创建工作空间
+// POST /api/workspaces - 创建项目组
 app.post('/api/workspaces', (req, res) => {
   try {
     const { name, description, projectIds } = req.body;
@@ -695,7 +695,7 @@ app.post('/api/workspaces', (req, res) => {
   }
 });
 
-// DELETE /api/workspaces/:id - 删除工作空间
+// DELETE /api/workspaces/:id - 删除项目组
 app.delete('/api/workspaces/:id', (req, res) => {
   try {
     deleteWorkspace.run(req.params.id);
@@ -705,7 +705,7 @@ app.delete('/api/workspaces/:id', (req, res) => {
   }
 });
 
-// POST /api/workspaces/:id/projects - 添加项目到工作空间
+// POST /api/workspaces/:id/projects - 添加项目到项目组
 app.post('/api/workspaces/:id/projects', (req, res) => {
   try {
     const { projectId } = req.body;
@@ -718,7 +718,7 @@ app.post('/api/workspaces/:id/projects', (req, res) => {
   }
 });
 
-// DELETE /api/workspaces/:id/projects/:projectId - 从工作空间移除项目
+// DELETE /api/workspaces/:id/projects/:projectId - 从项目组移除项目
 app.delete('/api/workspaces/:id/projects/:projectId', (req, res) => {
   try {
     removeProjectFromWorkspace.run(req.params.id, req.params.projectId);
@@ -729,7 +729,7 @@ app.delete('/api/workspaces/:id/projects/:projectId', (req, res) => {
   }
 });
 
-// GET /api/workspaces/:id/sessions - 获取工作空间的分析历史
+// GET /api/workspaces/:id/sessions - 获取项目组的分析历史
 app.get('/api/workspaces/:id/sessions', (req, res) => {
   try {
     const sessions = getWorkspaceSessions.all(req.params.id);
@@ -743,16 +743,16 @@ app.get('/api/workspaces/:id/sessions', (req, res) => {
   }
 });
 
-// POST /api/workspaces/:id/analyze - 对工作空间内所有项目进行对比分析
+// POST /api/workspaces/:id/analyze - 对项目组内所有项目进行对比分析
 app.post('/api/workspaces/:id/analyze', async (req, res) => {
   const { question } = req.body;
   const workspaceId = req.params.id;
 
   const workspace = getWorkspaceById.get(workspaceId);
-  if (!workspace) return res.status(404).json({ error: '工作空间不存在' });
+  if (!workspace) return res.status(404).json({ error: '项目组不存在' });
 
   const projects = getWorkspaceProjects.all(workspaceId);
-  if (projects.length === 0) return res.status(400).json({ error: '工作空间内没有项目' });
+  if (projects.length === 0) return res.status(400).json({ error: '项目组内没有项目' });
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -801,7 +801,7 @@ app.post('/api/workspaces/:id/analyze', async (req, res) => {
           onDone: () => {},
         });
         // 同步写入项目的 analysis 表，这样项目详情页也能看到
-        insertAnalysis.run(project.id, `[工作空间] ${question || '对比分析'}`, content, `provider: ${provider.name}`);
+        insertAnalysis.run(project.id, `[项目组] ${question || '对比分析'}`, content, `provider: ${provider.name}`);
         return { project: project.name, projectId: project.id, content, error: null };
       } catch (err) {
         return { project: project.name, projectId: project.id, content: '', error: err.message };

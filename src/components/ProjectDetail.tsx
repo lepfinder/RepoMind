@@ -164,6 +164,10 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
+  // 历史问答弹窗状态
+  const [showHistory, setShowHistory] = useState(false)
+  const [selectedQuestion, setSelectedQuestion] = useState<number | null>(null)
+
   // 物理安全删除项目状态
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -329,6 +333,24 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
       el.scrollTop = el.scrollHeight
     }
   }, [messages, activities])
+
+  // 快捷键 "?" 打开历史问答弹窗
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+        e.preventDefault()
+        setShowHistory(prev => !prev)
+      }
+      if (e.key === 'Escape') {
+        setShowHistory(false)
+        setSelectedQuestion(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const dateStr = project.lastCommitDate
     ? new Date(project.lastCommitDate).toLocaleDateString('zh-CN', {
@@ -1212,6 +1234,63 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
           )}
         </div>
       </main>
+
+      {/* 历史问答弹窗 */}
+      {showHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowHistory(false); setSelectedQuestion(null) }} />
+          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-2xl max-h-[80vh] shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">历史问答记录</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">按 <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-[10px] font-mono border border-gray-200 dark:border-gray-700">?</kbd> 切换</span>
+                <button onClick={() => { setShowHistory(false); setSelectedQuestion(null) }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {messages.filter(m => m.role === 'user').length === 0 ? (
+                <p className="text-center text-gray-400 py-8">暂无问答记录</p>
+              ) : (
+                <div className="space-y-2">
+                  {messages.map((msg, idx) => {
+                    if (msg.role !== 'user') return null
+                    const answer = messages[idx + 1]?.role === 'assistant' ? messages[idx + 1] : null
+                    const isSelected = selectedQuestion === idx
+                    return (
+                      <div key={msg.id}>
+                        <button
+                          onClick={() => setSelectedQuestion(isSelected ? null : idx)}
+                          className={`w-full text-left px-4 py-3 rounded-lg transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                              : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="text-blue-500 mt-0.5 shrink-0">Q</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-900 dark:text-white line-clamp-2">{msg.content}</p>
+                              <p className="text-[11px] text-gray-400 mt-1">{new Date(msg.timestamp).toLocaleString('zh-CN')}</p>
+                            </div>
+                            <ChevronRight className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                          </div>
+                        </button>
+                        {isSelected && answer && (
+                          <div className="mt-1 ml-7 mr-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 max-h-60 overflow-y-auto prose prose-sm dark:prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{answer.content}</ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 物理删除项目高级二次确认对话框 (Premium Confirmation Modal) */}
       {showDeleteConfirm && (
