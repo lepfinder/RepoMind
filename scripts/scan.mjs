@@ -286,6 +286,29 @@ for (const entry of entries) {
       statusStr = '✅ 与远程完全同步';
     } else if (githubData.compare_status === 'ahead') {
       statusStr = `⚠️ 落后远程 ${githubData.ahead_by} 个版本 (落后提交)`;
+      // 自动拉取最新代码
+      try {
+        const gitStatus = execSync('git status --porcelain', { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim();
+        if (!gitStatus) {
+          console.log(`   ├─ 🔄 正在拉取最新代码...`);
+          execSync('git pull --ff-only', { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] });
+          statusStr = '✅ 已拉取最新代码，与远程同步';
+          githubData.compare_status = 'identical';
+          githubData.ahead_by = 0;
+          // 重新获取本地 commit 信息
+          const newInfo = getGitInfo(dir);
+          if (newInfo.lastCommitHash) {
+            githubData.lastCommitHash = newInfo.lastCommitHash;
+            githubData.lastCommitDate = newInfo.lastCommitDate;
+          }
+        } else {
+          console.log(`   ├─ ⚠️ 有未提交的更改，跳过自动拉取`);
+          statusStr += ' (有未提交更改，跳过拉取)';
+        }
+      } catch (pullErr) {
+        console.log(`   ├─ ❌ 拉取失败: ${pullErr.message}`);
+        statusStr += ' (拉取失败)';
+      }
     } else if (githubData.compare_status === 'behind') {
       statusStr = `🔵 本地领先 ${githubData.behind_by} 个提交 (待推送)`;
     } else if (githubData.compare_status === 'diverged') {
