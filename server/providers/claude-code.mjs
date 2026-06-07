@@ -103,17 +103,9 @@ export async function analyze({ projectPath, projectName, systemPrompt, userMess
   function processLine(trimmed) {
     if (!trimmed) return;
 
-    console.log(`[Claude Code raw] ${trimmed.slice(0, 200)}`);
-
     try {
       const event = JSON.parse(trimmed);
       hasReceivedData = true;
-
-      if (event.type === 'stream_event') {
-        console.log(`[Claude Code] stream_event: ${event.event?.type} | index: ${event.event?.index} | block_type: ${event.event?.content_block?.type || event.event?.delta?.type || '-'}`);
-      } else {
-        console.log(`[Claude Code] event: ${event.type}`);
-      }
 
       if (event.type === 'stream_event') {
         const streamEvent = event.event;
