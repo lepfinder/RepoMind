@@ -95,7 +95,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_ws_proj_workspace ON workspace_projects(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_ws_sessions_workspace ON workspace_sessions(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_ws_analyses_session ON workspace_analyses(session_id);
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
 `);
+
+// Insert default settings if not exist
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('ai_provider', 'hermes')").run();
 
 // Upgrade schema if fields are missing in an existing database
 const tableInfo = db.prepare("PRAGMA table_info(projects)").all();
@@ -193,6 +202,11 @@ const insertWorkspaceAnalysis = db.prepare('INSERT INTO workspace_analyses (sess
 const getWorkspaceSessions = db.prepare('SELECT * FROM workspace_sessions WHERE workspace_id = ? ORDER BY created_at DESC');
 const getWorkspaceAnalyses = db.prepare('SELECT * FROM workspace_analyses WHERE session_id = ?');
 
+// Settings prepared statements
+const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
+const setSetting = db.prepare("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at");
+const getAllSettings = db.prepare('SELECT key, value FROM settings');
+
 export {
   db,
   upsertProject,
@@ -215,4 +229,7 @@ export {
   insertWorkspaceAnalysis,
   getWorkspaceSessions,
   getWorkspaceAnalyses,
+  getSetting,
+  setSetting,
+  getAllSettings,
 };

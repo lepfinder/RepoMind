@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Sun, Moon, FolderPlus, Loader2, Check, AlertCircle, RefreshCw, Layers } from 'lucide-react'
+import { Sun, Moon, FolderPlus, Loader2, Check, AlertCircle, RefreshCw, Layers, Settings } from 'lucide-react'
 import type { Project } from './types'
 import ProjectCard from './components/ProjectCard'
 import ProjectDetail from './components/ProjectDetail'
 import WorkspaceList from './components/WorkspaceList'
 import WorkspaceDetail from './components/WorkspaceDetail'
+import SettingsModal from './components/SettingsModal'
 
 const API_BASE = 'http://localhost:3001'
 
@@ -68,6 +69,7 @@ export default function App() {
   const [scanProgress, setScanProgress] = useState('')
 
   // 导入 GitHub 状态管理
+  const [showSettings, setShowSettings] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [importUrl, setImportUrl] = useState('')
   const [importLoading, setImportLoading] = useState(false)
@@ -330,6 +332,13 @@ export default function App() {
                   <Sun className="w-4 h-4" />
                 )}
               </button>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center cursor-pointer"
+                title="设置"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
               <div className="relative">
                 {scanning && (
                   <div className="absolute bottom-full right-0 mb-1.5 text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap select-none">
@@ -537,6 +546,7 @@ export default function App() {
           </div>
         </div>
       )}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   )
 }

@@ -25,7 +25,12 @@ import {
   insertWorkspaceAnalysis,
   getWorkspaceSessions,
   getWorkspaceAnalyses,
+  getSetting,
+  setSetting,
+  getAllSettings,
 } from './db.mjs';
+import * as hermesProvider from './providers/hermes.mjs';
+import * as claudeCodeProvider from './providers/claude-code.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,6 +42,22 @@ app.use(express.json());
 
 // 进行中的分析请求，用于取消
 const activeAnalyses = new Map();
+
+// AI Provider registry
+const providers = {
+  hermes: hermesProvider,
+  'claude-code': claudeCodeProvider,
+};
+
+function getActiveProvider() {
+  try {
+    const row = getSetting.get('ai_provider');
+    const key = row?.value || 'hermes';
+    return providers[key] || providers.hermes;
+  } catch {
+    return providers.hermes;
+  }
+}
 
 // POST /api/open-folder - Open a local folder in macOS Finder
 app.post('/api/open-folder', (req, res) => {
@@ -250,25 +271,43 @@ app.delete('/api/projects/:name', (req, res) => {
   }
 });
 
-// Helper to parse the local API server key from ~/.hermes/.env
-function getHermesApiKey() {
+// GET /api/settings - 获取所有设置
+app.get('/api/settings', (req, res) => {
   try {
-    const userHome = process.env.HOME || '/Users/xiyangxie';
-    const envPath = path.join(userHome, '.hermes', '.env');
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, 'utf8');
-      const match = content.match(/API_SERVER_KEY\s*=\s*(.+)/);
-      if (match) {
-        return match[1].trim().replace(/['"]/g, '');
-      }
-    }
-  } catch (e) {
-    console.error('Failed to parse ~/.hermes/.env for API key:', e);
+    const rows = getAllSettings.all();
+    const settings = Object.fromEntries(rows.map(r => [r.key, r.value]));
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  return 'change-me-local-dev';
-}
+});
 
-// POST /api/analyze - analyze project via Hermes API Server with session continuity
+// PUT /api/settings - 更新设置
+app.put('/api/settings', (req, res) => {
+  try {
+    const { key, value } = req.body;
+    if (!key) return res.status(400).json({ error: 'key is required' });
+    setSetting.run(key, value);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/ai-status - 检测各 AI Provider 的可用性
+app.get('/api/ai-status', async (req, res) => {
+  const status = {};
+  for (const [key, provider] of Object.entries(providers)) {
+    try {
+      status[key] = await provider.isAvailable();
+    } catch {
+      status[key] = false;
+    }
+  }
+  res.json(status);
+});
+
+// POST /api/analyze - analyze project via active AI provider
 app.post('/api/analyze', async (req, res) => {
   const { name, question } = req.body;
 
@@ -277,143 +316,51 @@ app.post('/api/analyze', async (req, res) => {
     return res.status(404).json({ error: 'Project not found' });
   }
 
-  // AbortController 用于取消进行中的 gateway 请求
+  const provider = getActiveProvider();
   const ac = new AbortController();
   const sessionId = `github-index-${name}`;
   activeAnalyses.set(sessionId, ac);
 
-  // 只给基本信息，让 Hermes 自己决定看哪些文件
   const systemPrompt = `你是项目分析助手，负责解答关于项目 "${name}" 的代码咨询。
 
 项目本地路径: ${project.local_path}
 
 你有文件读取和终端访问权限，请自行查看项目文件后给出分析。请始终用中文回答，保持简洁专业。`;
 
-  // 当前提问
   const currentPrompt = question || '请帮我对这个项目做一个初始分析报告。';
 
-  // 3. session_id 已在上方生成，复用 sessionId
-
-  // 4. 设置 SSE 响应头
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
-  res.write(`data: ${JSON.stringify({ status: 'analyzing', message: '正在唤醒 Hermes API 网关...' })}\n\n`);
+  res.write(`data: ${JSON.stringify({ status: 'analyzing', message: `正在唤醒 ${provider.displayName}...` })}\n\n`);
+
+  let currentContent = '';
 
   try {
-    const apiKey = getHermesApiKey();
-
-    // 不再手动拼装历史消息，只发送系统提示词 + 当前提问
-    // 历史对话由 Gateway 通过 X-Hermes-Session-Id 从 state.db 自动加载
-    const payload = {
-      model: 'hermes-agent',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: currentPrompt },
-      ],
-      stream: true
-    };
-
-    console.log(`[Hermes API] Sending streaming request for project: ${name}, session: ${sessionId}`);
-
-    const response = await fetch('http://127.0.0.1:8642/v1/chat/completions', {
-      signal: ac.signal,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'X-Hermes-Session-Id': sessionId,  // 关键：让 Gateway 加载/续传会话历史
+    await provider.analyze({
+      projectPath: project.local_path,
+      projectName: name,
+      systemPrompt,
+      userMessage: currentPrompt,
+      sessionId,
+      abortSignal: ac.signal,
+      onChunk: (text) => {
+        currentContent += text;
+        try { res.write(`data: ${JSON.stringify({ status: 'chunk', content: text })}\n\n`); } catch {}
       },
-      body: JSON.stringify(payload)
+      onTool: (toolInfo) => {
+        try { res.write(`data: ${JSON.stringify({ status: 'tool', ...toolInfo })}\n\n`); } catch {}
+      },
+      onError: (message) => {
+        try { res.write(`data: ${JSON.stringify({ status: 'error', message })}\n\n`); } catch {}
+      },
+      onDone: () => {},
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      res.write(`data: ${JSON.stringify({ status: 'error', message: `网关响应错误: ${errText}` })}\n\n`);
-      res.end();
-      return;
-    }
-
-    let buffer = '';
-    let currentContent = '';
-    let lastContentTime = Date.now();
-    let currentEventType = '';
-
-    // 使用异步迭代器优雅且无阻塞地流式拉取网关 SSE
-    for await (const chunk of response.body) {
-      const chunkStr = typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
-      buffer += chunkStr;
-
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-
-        // 解析 Hermes 自定义工具进度事件
-        // 格式: event: hermes.tool.progress\ndata: {...}
-        if (trimmed.startsWith('event: ')) {
-          currentEventType = trimmed.slice(7).trim();
-          continue;
-        }
-
-        if (trimmed.startsWith('data: ')) {
-          const dataStr = trimmed.slice(6).trim();
-          if (dataStr === '[DONE]') continue;
-
-          try {
-            // 工具进度事件
-            if (currentEventType === 'hermes.tool.progress') {
-              const toolData = JSON.parse(dataStr);
-              console.log('[Tool]', toolData.status, toolData.tool, toolData.label || '');
-              if (toolData.status === 'running' && toolData.label) {
-                res.write(`data: ${JSON.stringify({ status: 'tool', tool: toolData.tool, message: toolData.label })}\n\n`);
-              } else if (toolData.status === 'completed' && toolData.tool) {
-                res.write(`data: ${JSON.stringify({ status: 'tool', tool: toolData.tool, message: toolData.tool, done: true })}\n\n`);
-              }
-              currentEventType = '';
-              continue;
-            }
-
-            const parsed = JSON.parse(dataStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              currentContent += content;
-              lastContentTime = Date.now();
-              // 只推送新到达的 token，避免 payload 膨胀导致前端卡顿
-              res.write(`data: ${JSON.stringify({ status: 'chunk', content })}\n\n`);
-            }
-          } catch (e) {
-            // 忽略非 JSON 段落或格式不符数据
-          }
-          currentEventType = '';
-        }
-      }
-    }
-
-    // 处理边缘残余数据
-    if (buffer.trim().startsWith('data: ')) {
-      const dataStr = buffer.trim().slice(6).trim();
-      if (dataStr !== '[DONE]') {
-        try {
-          const parsed = JSON.parse(dataStr);
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) {
-            currentContent += content;
-            res.write(`data: ${JSON.stringify({ status: 'chunk', content })}\n\n`);
-          }
-        } catch (e) {}
-      }
-    }
-
     activeAnalyses.delete(sessionId);
+    insertAnalysis.run(project.id, currentPrompt, currentContent, `provider: ${provider.name}`);
 
-    // 5. 将这轮问答对存入本地 SQLite（保证 question 始终有值，加载历史时能正确显示用户提问）
-    insertAnalysis.run(project.id, question || '请帮我对这个项目做一个初始分析报告。', currentContent, 'system: minimal context');
-
-    // 6. 发送最终确认并优雅挂断
     try {
       res.write(`data: ${JSON.stringify({ status: 'done' })}\n\n`);
       res.end();
@@ -421,17 +368,16 @@ app.post('/api/analyze', async (req, res) => {
 
   } catch (error) {
     activeAnalyses.delete(sessionId);
-    console.error('[Hermes API] Streaming request failed:', error.message);
-    // 无论成功失败，都把已收到的内容存入数据库（防止客户端断开导致结果丢失）
+    console.error(`[${provider.displayName}] Analysis failed:`, error.message);
+
     if (currentContent) {
       try {
-        insertAnalysis.run(project.id, question || '请帮我对这个项目做一个初始分析报告。', currentContent, 'system: minimal context');
-        console.log('[Hermes API] Saved partial content to DB on error');
+        insertAnalysis.run(project.id, currentPrompt, currentContent, `provider: ${provider.name}`);
       } catch (dbErr) {
-        console.error('[Hermes API] Failed to save to DB:', dbErr.message);
+        console.error('Failed to save to DB:', dbErr.message);
       }
     }
-    // 客户端可能已断开，安全写入
+
     try {
       res.write(`data: ${JSON.stringify({ status: 'error', message: `分析中断: ${error.message}` })}\n\n`);
       res.end();
@@ -798,17 +744,15 @@ app.post('/api/workspaces/:id/analyze', async (req, res) => {
   const projects = getWorkspaceProjects.all(workspaceId);
   if (projects.length === 0) return res.status(400).json({ error: '工作空间内没有项目' });
 
-  // SSE 响应
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
 
+  const provider = getActiveProvider();
   const ac = new AbortController();
-  const apiKey = getHermesApiKey();
 
   try {
-    // 阶段 1：并行分析每个项目
-    res.write(`data: ${JSON.stringify({ status: 'phase', phase: 'analyzing', message: `正在并行分析 ${projects.length} 个项目...` })}\n\n`);
+    res.write(`data: ${JSON.stringify({ status: 'phase', phase: 'analyzing', message: `正在用 ${provider.displayName} 并行分析 ${projects.length} 个项目...` })}\n\n`);
 
     const analysisPrompt = `你是项目分析专家。请针对项目 "${'${name}'}" 回答以下问题：
 
@@ -821,56 +765,30 @@ app.post('/api/workspaces/:id/analyze', async (req, res) => {
 4. 标注具体的文件路径和代码位置
 5. 用中文回答`;
 
-    // 并行分析每个项目（限制并发 3）
     const analyzeProject = async (project) => {
       const sessionId = `ws-${workspaceId}-${project.name}`;
       const sysPrompt = `你是项目分析助手。项目: ${project.name}，路径: ${project.local_path}。你有文件读取权限。`;
+      let content = '';
 
       try {
-        const response = await fetch('http://127.0.0.1:8642/v1/chat/completions', {
-          signal: ac.signal,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'X-Hermes-Session-Id': sessionId,
-          },
-          body: JSON.stringify({
-            model: 'hermes-agent',
-            messages: [
-              { role: 'system', content: sysPrompt },
-              { role: 'user', content: analysisPrompt.replace('${name}', project.name) },
-            ],
-            stream: true,
-          }),
+        await provider.analyze({
+          projectPath: project.local_path,
+          projectName: project.name,
+          systemPrompt: sysPrompt,
+          userMessage: analysisPrompt.replace('${name}', project.name),
+          sessionId,
+          abortSignal: ac.signal,
+          onChunk: (text) => { content += text; },
+          onTool: () => {},
+          onError: () => {},
+          onDone: () => {},
         });
-
-        if (!response.ok) throw new Error(`Gateway error: ${response.status}`);
-
-        let content = '';
-        let buffer = '';
-        for await (const chunk of response.body) {
-          buffer += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const dataStr = line.slice(6).trim();
-            if (dataStr === '[DONE]') continue;
-            try {
-              const parsed = JSON.parse(dataStr);
-              const c = parsed.choices?.[0]?.delta?.content;
-              if (c) content += c;
-            } catch {}
-          }
-        }
         return { project: project.name, projectId: project.id, content, error: null };
       } catch (err) {
         return { project: project.name, projectId: project.id, content: '', error: err.message };
       }
     };
 
-    // 分批并发（每批 3 个）
     const results = [];
     const batchSize = 3;
     for (let i = 0; i < projects.length; i += batchSize) {
@@ -903,47 +821,23 @@ ${summaries}
 
 用中文回答。`;
 
-    const summarySessionId = `ws-${workspaceId}-summary`;
-    const summaryResponse = await fetch('http://127.0.0.1:8642/v1/chat/completions', {
-      signal: ac.signal,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'X-Hermes-Session-Id': summarySessionId,
+    let summaryContent = '';
+    await provider.analyze({
+      projectPath: projects[0].local_path,
+      projectName: workspace.name,
+      systemPrompt: '你是技术架构对比分析专家，擅长总结和对比不同项目的设计差异。',
+      userMessage: summaryPrompt,
+      sessionId: `ws-${workspaceId}-summary`,
+      abortSignal: ac.signal,
+      onChunk: (text) => {
+        summaryContent += text;
+        try { res.write(`data: ${JSON.stringify({ status: 'chunk', content: text })}\n\n`); } catch {}
       },
-      body: JSON.stringify({
-        model: 'hermes-agent',
-        messages: [
-          { role: 'system', content: '你是技术架构对比分析专家，擅长总结和对比不同项目的设计差异。' },
-          { role: 'user', content: summaryPrompt },
-        ],
-        stream: true,
-      }),
+      onTool: () => {},
+      onError: () => {},
+      onDone: () => {},
     });
 
-    let summaryContent = '';
-    let summaryBuffer = '';
-    for await (const chunk of summaryResponse.body) {
-      summaryBuffer += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
-      const lines = summaryBuffer.split('\n');
-      summaryBuffer = lines.pop() || '';
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const dataStr = line.slice(6).trim();
-        if (dataStr === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(dataStr);
-          const c = parsed.choices?.[0]?.delta?.content;
-          if (c) {
-            summaryContent += c;
-            res.write(`data: ${JSON.stringify({ status: 'chunk', content: c })}\n\n`);
-          }
-        } catch {}
-      }
-    }
-
-    // 存入数据库
     const sessionResult = insertWorkspaceSession.run(workspaceId, question || '', summaryContent);
     const sessionId2 = sessionResult.lastInsertRowid;
     for (const r of results) {
@@ -970,7 +864,7 @@ app.post('/api/analyze/stop', (req, res) => {
   if (ac) {
     ac.abort();
     activeAnalyses.delete(sessionId);
-    console.log(`[Hermes API] Aborted analysis for: ${name}`);
+    console.log(`[AI] Aborted analysis for: ${name}`);
     res.json({ success: true });
   } else {
     res.json({ success: false, message: 'No active analysis found' });
