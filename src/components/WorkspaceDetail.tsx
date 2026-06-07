@@ -378,6 +378,10 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                           <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
                           <span className="text-[10px] text-gray-400">思考中...</span>
                         </div>
+                      ) : msg.content?.startsWith('分析出错:') || msg.content?.startsWith('请求失败:') ? (
+                        <div className="text-xs text-red-500 dark:text-red-400">
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        </div>
                       ) : msg.content ? (
                         <div>
                           {/* 汇总内容 */}

@@ -1134,6 +1134,10 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
                             <span className="text-[10px] text-gray-400">思考中...</span>
                           </div>
                         )
+                      ) : msg.content?.startsWith('分析出错:') || msg.content?.startsWith('请求失败:') ? (
+                        <div className="text-xs text-red-500 dark:text-red-400">
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        </div>
                       ) : msg.content ? (
                         <div className="prose prose-sm dark:prose-invert max-w-none
                           [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
