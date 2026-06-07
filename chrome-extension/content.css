@@ -1,0 +1,76 @@
+.gi-btn-wrapper {
+  display: inline-block;
+  list-style: none;
+  margin-left: 8px;
+}
+
+.gi-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #fff;
+  background-color: #238636;
+  border: 1px solid rgba(240, 246, 252, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.1s;
+  white-space: nowrap;
+  vertical-align: middle;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+}
+
+.gi-btn:hover:not(:disabled) {
+  background-color: #2ea043;
+}
+
+.gi-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.gi-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.gi-btn .gi-icon {
+  flex-shrink: 0;
+}
+
+.gi-btn.gi-loading {
+  background-color: #1f6feb;
+}
+
+.gi-btn.gi-loading .gi-icon {
+  animation: gi-spin 1s linear infinite;
+}
+
+@keyframes gi-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.gi-btn.gi-success {
+  background-color: #238636;
+  border-color: #2ea043;
+}
+
+.gi-btn.gi-error {
+  background-color: #da3633;
+  border-color: #f85149;
+}
+
+/* Dark mode support */
+.dark .gi-btn,
+[data-color-mode="dark"] .gi-btn {
+  background-color: #238636;
+  border-color: rgba(240, 246, 252, 0.1);
+}
+
+.dark .gi-btn:hover:not(:disabled),
+[data-color-mode="dark"] .gi-btn:hover:not(:disabled) {
+  background-color: #2ea043;
+}
