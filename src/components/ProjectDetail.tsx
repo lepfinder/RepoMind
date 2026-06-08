@@ -621,6 +621,57 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
             <span>返回</span>
           </button>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">{project.name}</h1>
+
+          {/* 同步状态标签 */}
+          {project.compareStatus && project.compareStatus !== 'unknown' && !project.compareStatus.startsWith('unknown') && (
+            <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 ${
+              project.compareStatus === 'identical'
+                ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20'
+                : project.compareStatus === 'ahead'
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                : project.compareStatus === 'behind'
+                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                project.compareStatus === 'identical' ? 'bg-green-500' :
+                project.compareStatus === 'ahead' ? 'bg-amber-500' :
+                project.compareStatus === 'behind' ? 'bg-blue-500' : 'bg-rose-500'
+              }`} />
+              {project.compareStatus === 'identical' && '已同步'}
+              {project.compareStatus === 'ahead' && `落后 ${project.aheadBy} 个版本`}
+              {project.compareStatus === 'behind' && `领先 ${project.behindBy} 个提交`}
+              {project.compareStatus === 'diverged' && '分支分叉'}
+            </span>
+          )}
+
+          {/* 同步代码按钮 */}
+          {project.compareStatus === 'ahead' && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${API_BASE}/api/git-pull`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: project.path }),
+                  })
+                  const data = await res.json()
+                  if (data.success) {
+                    alert('✅ ' + (data.message || '代码已同步'))
+                  } else {
+                    alert('❌ ' + (data.error || '同步失败'))
+                  }
+                } catch (err: any) {
+                  alert('❌ 请求失败: ' + err.message)
+                }
+              }}
+              className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-1.5 active:scale-95"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              <span>同步代码</span>
+            </button>
+          )}
+
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="ml-auto px-3 py-1.5 bg-red-500/10 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 hover:bg-red-500/20 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition flex items-center gap-1.5 shadow-sm active:scale-95"

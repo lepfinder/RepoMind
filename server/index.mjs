@@ -77,6 +77,26 @@ app.post('/api/open-folder', (req, res) => {
   });
 });
 
+// POST /api/git-pull - Pull latest code for a project
+app.post('/api/git-pull', (req, res) => {
+  const { path: projectPath } = req.body;
+  if (!projectPath) return res.status(400).json({ error: 'path is required' });
+
+  try {
+    // Check for uncommitted changes
+    const status = execSync('git status --porcelain', { cwd: projectPath, stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim();
+    if (status) {
+      return res.json({ success: false, error: '有未提交的更改，请先提交或暂存', hasChanges: true });
+    }
+
+    // Pull with fast-forward only
+    const output = execSync('git pull --ff-only', { cwd: projectPath, stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim();
+    res.json({ success: true, message: output || '已是最新' });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/projects - list all projects
 app.get('/api/projects', (req, res) => {
   try {
