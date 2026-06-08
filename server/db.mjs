@@ -170,6 +170,7 @@ const getAllProjects = db.prepare('SELECT * FROM projects ORDER BY last_commit_d
 const getProjectById = db.prepare('SELECT * FROM projects WHERE id = ?');
 const getProjectByName = db.prepare('SELECT * FROM projects WHERE name = ?');
 const deleteProjectByName = db.prepare('DELETE FROM projects WHERE name = ?');
+const updateProjectCompareStatus = db.prepare('UPDATE projects SET compare_status = ?, ahead_by = ?, behind_by = ? WHERE name = ?');
 
 const insertAnalysis = db.prepare(`
   INSERT INTO analysis (project_id, question, answer, context_summary)
@@ -214,6 +215,7 @@ export {
   getProjectById,
   getProjectByName,
   deleteProjectByName,
+  updateProjectCompareStatus,
   insertAnalysis,
   getAnalysisByProjectId,
   insertWorkspace,

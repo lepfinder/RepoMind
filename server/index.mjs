@@ -10,6 +10,7 @@ import {
   getAllProjects,
   getProjectByName,
   deleteProjectByName,
+  updateProjectCompareStatus,
   insertAnalysis,
   getAnalysisByProjectId,
   insertWorkspace,
@@ -79,7 +80,7 @@ app.post('/api/open-folder', (req, res) => {
 
 // POST /api/git-pull - Pull latest code for a project
 app.post('/api/git-pull', (req, res) => {
-  const { path: projectPath } = req.body;
+  const { path: projectPath, name } = req.body;
   if (!projectPath) return res.status(400).json({ error: 'path is required' });
 
   try {
@@ -90,8 +91,14 @@ app.post('/api/git-pull', (req, res) => {
     }
 
     // Pull with fast-forward only
-    const output = execSync('git pull --ff-only', { cwd: projectPath, stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim();
-    res.json({ success: true, message: output || '已是最新' });
+    execSync('git pull --ff-only', { cwd: projectPath, stdio: ['pipe', 'pipe', 'pipe'] });
+
+    // Update DB: mark as identical after successful pull
+    if (name) {
+      updateProjectCompareStatus.run('identical', 0, 0, name);
+    }
+
+    res.json({ success: true, message: '同步成功' });
   } catch (err) {
     res.json({ success: false, error: err.message });
   }

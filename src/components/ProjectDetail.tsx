@@ -661,24 +661,12 @@ export default function ProjectDetail({ project: projectProp, onBack, langColor,
                   const res = await fetch(`${API_BASE}/api/git-pull`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: project.path }),
+                    body: JSON.stringify({ path: project.path, name: project.name }),
                   })
                   const data = await res.json()
                   if (data.success) {
-                    setSyncMessage({ type: 'success', text: data.message || '已同步' })
-                    // Re-fetch project to update compare status
-                    try {
-                      const projRes = await fetch(`${API_BASE}/api/projects/${project.name}`)
-                      const { project: updated } = await projRes.json()
-                      if (updated) {
-                        setProject(prev => ({
-                          ...prev,
-                          compareStatus: updated.compare_status || '',
-                          aheadBy: updated.ahead_by || 0,
-                          behindBy: updated.behind_by || 0,
-                        }))
-                      }
-                    } catch {}
+                    setSyncMessage({ type: 'success', text: '同步成功' })
+                    setProject(prev => ({ ...prev, compareStatus: 'identical', aheadBy: 0, behindBy: 0 }))
                   } else {
                     setSyncMessage({ type: 'error', text: data.error || '同步失败' })
                   }
