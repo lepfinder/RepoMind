@@ -155,7 +155,8 @@ function shortLabel(label: string) {
   return parts.length > 2 ? parts.slice(-2).join('/') : (parts.pop() || label)
 }
 
-export default function ProjectDetail({ project, onBack, langColor, onDeleted }: Props) {
+export default function ProjectDetail({ project: projectProp, onBack, langColor, onDeleted }: Props) {
+  const [project, setProject] = useState(projectProp)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [analysisHistory, setAnalysisHistory] = useState<any[]>([])
   const [analyzing, setAnalyzing] = useState(false)
@@ -665,6 +666,19 @@ export default function ProjectDetail({ project, onBack, langColor, onDeleted }:
                   const data = await res.json()
                   if (data.success) {
                     setSyncMessage({ type: 'success', text: data.message || '已同步' })
+                    // Re-fetch project to update compare status
+                    try {
+                      const projRes = await fetch(`${API_BASE}/api/projects/${project.name}`)
+                      const { project: updated } = await projRes.json()
+                      if (updated) {
+                        setProject(prev => ({
+                          ...prev,
+                          compareStatus: updated.compare_status || '',
+                          aheadBy: updated.ahead_by || 0,
+                          behindBy: updated.behind_by || 0,
+                        }))
+                      }
+                    } catch {}
                   } else {
                     setSyncMessage({ type: 'error', text: data.error || '同步失败' })
                   }
