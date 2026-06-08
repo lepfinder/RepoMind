@@ -194,6 +194,7 @@ export default function App() {
   const triggerScan = async () => {
     setScanning(true)
     setScanProgress('正在唤醒扫描引擎...')
+    const startTime = Date.now()
     try {
       const response = await fetch(`${API_BASE}/api/scan`, { method: 'POST' })
       const reader = response.body?.getReader()
@@ -201,6 +202,7 @@ export default function App() {
 
       const decoder = new TextDecoder()
       let buffer = ''
+      let finalMessage = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -214,13 +216,19 @@ export default function App() {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6))
-              setScanProgress(data.message || '')
+              if (data.message) setScanProgress(data.message)
               if (data.status === 'done' || data.status === 'error') {
+                finalMessage = data.message || ''
+                // 确保至少显示 1 秒
+                const elapsed = Date.now() - startTime
+                const remaining = Math.max(0, 1000 - elapsed)
+                await new Promise(r => setTimeout(r, remaining))
+                setScanProgress(data.status === 'error' ? `❌ ${finalMessage}` : `✅ ${finalMessage}`)
                 setScanning(false)
                 setTimeout(() => {
                   setScanProgress('')
                   loadProjects()
-                }, 1200)
+                }, 2000)
                 return
               }
             } catch { /* skip */ }
@@ -228,7 +236,7 @@ export default function App() {
         }
       }
     } catch (err: any) {
-      setScanProgress(`扫描异常: ${err.message}`)
+      setScanProgress(`❌ 扫描异常: ${err.message}`)
       setScanning(false)
       setTimeout(() => {
         setScanProgress('')
