@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Scan ~/workspace/github for git repos and save to SQLite
+ * Scan configured GitHub directory for git repos and save to SQLite
+ * Default: ~/workspace/github (override with REPO_MIND_DIR env var)
  */
 import fs from 'fs';
 import path from 'path';
@@ -10,7 +11,7 @@ import { upsertProject, db } from '../server/db.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');
-const GITHUB_DIR = path.resolve(process.env.HOME, 'workspace/github');
+const REPO_MIND_DIR = process.env.REPO_MIND_DIR || path.resolve(process.env.HOME, 'workspace/github');
 const PUBLIC_DIR = path.resolve(ROOT_DIR, 'public');
 const SCAN_MARKER = path.resolve(ROOT_DIR, 'data', '.last-scan');
 
@@ -87,7 +88,7 @@ function getDescription(dir, repoName) {
 
 function getGitHubRepoInfo(owner, repo, localCommitHash, localCommitDate) {
   const token = process.env.GITHUB_TOKEN;
-  const headers = ['-H "User-Agent: github-index"'];
+  const headers = ['-H "User-Agent: repo-mind"'];
   if (token) {
     headers.push(`-H "Authorization: token ${token}"`);
   }
@@ -166,14 +167,14 @@ function getGitHubRepoInfo(owner, repo, localCommitHash, localCommitDate) {
   return result;
 }
 
-const entries = fs.readdirSync(GITHUB_DIR, { withFileTypes: true });
+const entries = fs.readdirSync(REPO_MIND_DIR, { withFileTypes: true });
 let count = 0;
 
 db.prepare('BEGIN').run();
 
 for (const entry of entries) {
   if (!entry.isDirectory()) continue;
-  const dir = path.join(GITHUB_DIR, entry.name);
+  const dir = path.join(REPO_MIND_DIR, entry.name);
   const gitConfig = parseGitConfig(dir);
   if (!gitConfig) continue;
 

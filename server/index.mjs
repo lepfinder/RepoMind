@@ -34,6 +34,7 @@ import * as hermesProvider from './providers/hermes.mjs';
 import * as claudeCodeProvider from './providers/claude-code.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_MIND_DIR = process.env.REPO_MIND_DIR || path.resolve(process.env.HOME || '/Users/xiyangxie', 'workspace/github');
 
 const app = express();
 const PORT = 3001;
@@ -274,8 +275,7 @@ app.delete('/api/projects/:name', (req, res) => {
     }
 
     const projectPath = project.local_path;
-    const userHome = process.env.HOME || '/Users/xiyangxie';
-    const allowedRoot = path.resolve(userHome, 'workspace/github');
+    const allowedRoot = REPO_MIND_DIR;
 
     // 🔴 严格的安全红线：强制防御路径穿越，保证只物理删除允许工作区下的目录！
     if (!projectPath || !projectPath.startsWith(allowedRoot) || projectPath === allowedRoot) {
@@ -359,7 +359,7 @@ app.post('/api/analyze', async (req, res) => {
 
   const provider = getActiveProvider();
   const ac = new AbortController();
-  const sessionId = `github-index-${name}`;
+  const sessionId = `repo-mind-${name}`;
   activeAnalyses.set(sessionId, ac);
 
   const systemPrompt = `你是项目分析助手，负责解答关于项目 "${name}" 的代码咨询。
@@ -459,18 +459,17 @@ app.post('/api/import', async (req, res) => {
     return;
   }
 
-  const GITHUB_DIR = '/Users/xiyangxie/workspace/github';
-  const targetPath = path.join(GITHUB_DIR, repo);
+  const targetPath = path.join(REPO_MIND_DIR, repo);
 
   // 3. 安全防物理覆盖机制
   if (fs.existsSync(targetPath)) {
-    res.write(`data: ${JSON.stringify({ status: 'error', message: `物理冲突：本地路径 ~/workspace/github/${repo} 已存在该项目文件夹，无法重复导入。` })}\n\n`);
+    res.write(`data: ${JSON.stringify({ status: 'error', message: `本地已存在 ${repo} 文件夹，无法重复导入。` })}\n\n`);
     res.end();
     return;
   }
 
   // 4. 发起 Git Clone 流式任务
-  res.write(`data: ${JSON.stringify({ status: 'cloning', message: `正在克隆仓库 ${owner}/${repo} 到本地 ~/workspace/github/${repo}...` })}\n\n`);
+  res.write(`data: ${JSON.stringify({ status: 'cloning', message: `正在克隆 ${owner}/${repo} 到本地...` })}\n\n`);
   
   const cloneCmd = `git clone https://github.com/${owner}/${repo}.git "${targetPath}"`;
   
@@ -533,7 +532,7 @@ app.post('/api/import', async (req, res) => {
       res.write(`data: ${JSON.stringify({ status: 'syncing', message: '正在同步 GitHub Repository 远端星标与分叉数据...' })}\n\n`);
 
       const token = process.env.GITHUB_TOKEN;
-      const headers = ['-H "User-Agent: github-index"'];
+      const headers = ['-H "User-Agent: repo-mind"'];
       if (token) headers.push(`-H "Authorization: token ${token}"`);
       const headersStr = headers.join(' ');
 
@@ -629,7 +628,7 @@ app.post('/api/import', async (req, res) => {
   });
 });
 
-// POST /api/scan - Trigger a full rescan of ~/workspace/github and sync to SQLite
+// POST /api/scan - Trigger a full rescan of REPO_MIND_DIR and sync to SQLite
 app.post('/api/scan', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -812,7 +811,7 @@ app.post('/api/workspaces/:id/analyze', async (req, res) => {
 
     const analyzeProject = async (project) => {
       // 统一使用项目详情页的 sessionId，保持上下文关联
-      const sessionId = `github-index-${project.name}`;
+      const sessionId = `repo-mind-${project.name}`;
       const sysPrompt = `你是项目分析助手。项目: ${project.name}，路径: ${project.local_path}。你有文件读取权限。`;
       const userMessage = analysisPrompt.replace('${name}', project.name);
       let content = '';
@@ -881,7 +880,7 @@ ${summaries}
       projectName: workspace.name,
       systemPrompt: '你是技术架构对比分析专家，擅长总结和对比不同项目的设计差异。',
       userMessage: summaryPrompt,
-      sessionId: `github-index-${workspace.name}`,
+      sessionId: `repo-mind-${workspace.name}`,
       abortSignal: ac.signal,
       onChunk: (text) => {
         summaryContent += text;
@@ -915,7 +914,7 @@ ${summaries}
 // POST /api/analyze/stop - 取消进行中的分析
 app.post('/api/analyze/stop', (req, res) => {
   const { name } = req.body;
-  const sessionId = `github-index-${name}`;
+  const sessionId = `repo-mind-${name}`;
   const ac = activeAnalyses.get(sessionId);
   if (ac) {
     ac.abort();
