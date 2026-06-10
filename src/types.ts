@@ -23,3 +23,27 @@ export interface Project {
   aheadBy: number;
   behindBy: number;
 }
+
+export interface AnalysisDetail {
+  project_id: number;
+  project_name?: string;
+  answer: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  isComplete?: boolean;
+  sessionId?: number;
+  analyses?: AnalysisDetail[];
+}
+
+export interface Workspace {
+  id: number;
+  name: string;
+  description: string;
+  projects: Project[];
+}
+

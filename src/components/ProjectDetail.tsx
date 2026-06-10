@@ -1,8 +1,7 @@
-import type { Project } from '../types'
+import type { Project, ChatMessage } from '../types'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { ghcolors } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import { useState, useEffect, useRef } from 'react'
@@ -24,14 +23,8 @@ import {
   FileCode,
   FileText
 } from 'lucide-react'
-
-interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: string
-  isComplete?: boolean
-}
+import { toolIcon, toolVerb, shortLabel } from '../constants/toolEmoji'
+import AiChatMessage from './shared/AiChatMessage'
 
 interface FileNode {
   name: string
@@ -88,72 +81,6 @@ const lightMarkdownComponents = {
       </code>
     )
   }
-}
-
-const darkMarkdownComponents = {
-  code({ className, children, ...props }: any) {
-    const match = /language-(\w+)/.exec(className || '')
-    const hasNewline = String(children).includes('\n')
-
-    if (match || hasNewline) {
-      return (
-        <div className="my-2.5 rounded-lg overflow-hidden">
-          <SyntaxHighlighter
-            language={match ? match[1] : 'text'}
-            style={vscDarkPlus}
-            customStyle={{
-              margin: 0,
-              padding: '0.8rem 0.75rem',
-              background: '#1e1e2e',
-              fontSize: '11px',
-              lineHeight: '1.55',
-            }}
-            codeTagProps={{
-              style: {
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-              }
-            }}
-            showLineNumbers={false}
-          >
-            {String(children).replace(/\n$/, '')}
-          </SyntaxHighlighter>
-        </div>
-      )
-    }
-
-    return (
-      <code className="bg-gray-700/60 px-1.5 py-0.5 rounded text-purple-300 font-mono text-[11px]" {...props}>
-        {children}
-      </code>
-    )
-  }
-}
-
-const TOOL_EMOJI: Record<string, string> = {
-  // Hermes tools
-  read_file: '📖', search_files: '🔍', terminal: '⚡',
-  execute_code: '🐍', browser_navigate: '🌐', browser_snapshot: '👁️',
-  // Claude Code tools
-  Read: '📖', Write: '✏️', Edit: '✏️', Bash: '⚡',
-  Glob: '🔍', Grep: '🔍', WebFetch: '🌐', WebSearch: '🔍',
-  Agent: '🤖', NotebookEdit: '📓', thinking: '🤔',
-}
-const TOOL_VERB: Record<string, string> = {
-  // Hermes tools
-  read_file: 'read', search_files: 'search', terminal: 'run',
-  execute_code: 'exec', browser_navigate: 'goto', browser_snapshot: 'snap',
-  // Claude Code tools
-  Read: 'read', Write: 'write', Edit: 'edit', Bash: 'run',
-  Glob: 'search', Grep: 'grep', WebFetch: 'fetch', WebSearch: 'search',
-  Agent: 'agent', NotebookEdit: 'edit', thinking: '',
-}
-
-function toolIcon(tool: string) { return TOOL_EMOJI[tool] || '🔧' }
-function toolVerb(tool: string) { return TOOL_VERB[tool] || tool }
-function shortLabel(label: string) {
-  // 保留最后两级路径: src/components/ProjectDetail.tsx
-  const parts = label.split('/')
-  return parts.length > 2 ? parts.slice(-2).join('/') : (parts.pop() || label)
 }
 
 export default function ProjectDetail({ project: projectProp, onBack, langColor, onDeleted, onSync }: Props) {
@@ -1222,114 +1149,14 @@ export default function ProjectDetail({ project: projectProp, onBack, langColor,
             ) : (
               <>
                 {messages.map(msg => (
-                  <div
+                  <AiChatMessage
                     key={msg.id}
-                    id={msg.id}
-                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-500 ${
-                      highlightedId === msg.id ? 'ring-2 ring-blue-400 dark:ring-blue-500 ring-offset-2 rounded-xl' : ''
-                    }`}>
-                    <div className={`max-w-[90%] rounded-xl px-4 py-3 ${
-                      msg.role === 'user'
-                        ? 'bg-blue-600 text-white text-xs leading-relaxed rounded-br-md'
-                        : 'bg-gray-50 dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 text-xs leading-relaxed rounded-bl-md border border-gray-100 dark:border-gray-700/50'
-                    }`}>
-                      {msg.role === 'user' ? (
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                      ) : msg.isComplete === false && (activities.length > 0 || analyzing) ? (
-                        <>
-                          {activities.length > 0 ? (
-                            <div className="space-y-0.5 py-0.5 font-mono text-[11px] mb-2">
-                              {activities.map((a, i) => (
-                                <div key={i} className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
-                                  <span className="text-gray-300 dark:text-gray-600 select-none">┊</span>
-                                  <span>{a.icon}</span>
-                                  {a.done ? (
-                                    <span className="text-gray-500 dark:text-gray-400">{a.text}</span>
-                                  ) : (
-                                    <span className="text-gray-400 dark:text-gray-500 animate-pulse">{a.text}</span>
-                                  )}
-                                </div>
-                              ))}
-                              <div className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
-                                <span className="text-gray-300 dark:text-gray-600 select-none">┊</span>
-                                <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                                <span className="animate-pulse">working…</span>
-                                <button
-                                  onClick={stopAnalysis}
-                                  className="ml-2 px-2 py-0.5 text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition cursor-pointer"
-                                >
-                                  停止
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 py-1">
-                              <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                              <span className="text-[10px] text-gray-400">思考中...</span>
-                            </div>
-                          )}
-                          {msg.content && (
-                            <div className="prose prose-sm dark:prose-invert max-w-none
-                              [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
-                              [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
-                              [&_h3]:text-[12px] [&_h3]:font-medium [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-gray-700 dark:[&_h3]:text-gray-200
-                              [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
-                              [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
-                              [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
-                              [&_li]:text-[12px] [&_li]:my-0.5 [&_li]:text-gray-700 dark:[&_li]:text-gray-300
-                              [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono [&_code]:text-purple-600 dark:[&_code]:text-purple-300
-                              [&_pre]:bg-gray-900 dark:[&_pre]:bg-gray-950 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-gray-800 dark:[&_pre]:border-gray-700
-                              [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:py-0 [&_pre_code]:text-gray-200 [&_pre_code]:text-[11px] [&_pre_code]:font-mono
-                              [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 dark:[&_blockquote]:text-gray-400 [&_blockquote]:italic
-                              [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
-                              [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
-                              [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
-                              [&_hr]:border-gray-200 dark:[&_hr]:border-gray-700 [&_hr]:my-3
-                              [&_strong]:text-gray-900 dark:[&_strong]:text-white [&_strong]:font-semibold
-                              [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2
-                            ">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={darkMarkdownComponents}>
-                                {msg.content}
-                              </ReactMarkdown>
-                            </div>
-                          )}
-                        </>
-                      ) : msg.content?.startsWith('分析出错:') || msg.content?.startsWith('请求失败:') ? (
-                        <div className="text-xs text-red-500 dark:text-red-400">
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
-                        </div>
-                      ) : msg.content ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none
-                          [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
-                          [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
-                          [&_h3]:text-[12px] [&_h3]:font-medium [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-gray-700 dark:[&_h3]:text-gray-200
-                          [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
-                          [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
-                          [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
-                          [&_li]:text-[12px] [&_li]:my-0.5 [&_li]:text-gray-700 dark:[&_li]:text-gray-300
-                          [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono [&_code]:text-purple-600 dark:[&_code]:text-purple-300
-                          [&_pre]:bg-gray-900 dark:[&_pre]:bg-gray-950 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-gray-800 dark:[&_pre]:border-gray-700
-                          [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:py-0 [&_pre_code]:text-gray-200 [&_pre_code]:text-[11px] [&_pre_code]:font-mono
-                          [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 dark:[&_blockquote]:text-gray-400 [&_blockquote]:italic
-                          [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
-                          [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
-                          [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
-                          [&_hr]:border-gray-200 dark:[&_hr]:border-gray-700 [&_hr]:my-3
-                          [&_strong]:text-gray-900 dark:[&_strong]:text-white [&_strong]:font-semibold
-                          [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2
-                        ">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={darkMarkdownComponents}>
-                            {msg.content}
-                          </ReactMarkdown>
-                        </div>
-                          ) : (
-                            <div className="flex items-center gap-2 py-1">
-                              <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                              <span className="text-[10px] text-gray-400">思考中...</span>
-                            </div>
-                          )}
-                    </div>
-                  </div>
+                    msg={msg}
+                    highlightedId={highlightedId}
+                    analyzing={analyzing}
+                    activities={activities}
+                    stopAnalysis={stopAnalysis}
+                  />
                 ))}
                   </>
                 )}
