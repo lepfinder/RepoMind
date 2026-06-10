@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RepoMind - 本地 GitHub 项目个人智库</title>
+  <meta name="description" content="RepoMind 是一款专为开发者设计的本地 GitHub 项目管理与智能分析工具。支持本地仓库秒级扫描、项目集管理、分支比对与导入，打造你的专属个人项目智库。">
+  
+  <!-- 字体引入 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              900: '#1e3a8a',
+              950: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      overflow-x: hidden;
+    }
+    
+    /* 渐变背景光晕 */
+    .glow-blur {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.05) 50%, rgba(0,0,0,0) 100%);
+      filter: blur(80px);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* 炫酷的网格背景 */
+    .grid-bg {
+      background-size: 40px 40px;
+      background-image: linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    }
+  </style>
+</head>
+<body class="font-sans antialiased selection:bg-brand-500/30 selection:text-brand-100">
+
+  <!-- 背景装饰 -->
+  <div class="fixed inset-0 grid-bg pointer-events-none z-0"></div>
+  <div class="glow-blur top-[-100px] left-[-100px]"></div>
+  <div class="glow-blur bottom-[-200px] right-[-100px] !bg-indigo-500/10"></div>
+
+  <div class="relative z-10">
+    <!-- 导航栏 -->
+    <header class="border-b border-white/5 bg-slate-950/40 backdrop-blur-md sticky top-0 transition-colors duration-200">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <span class="text-xl font-bold font-outfit text-white tracking-wide">RepoMind</span>
+        </div>
+        
+        <nav class="hidden md:flex items-center gap-8 text-sm text-slate-400 font-medium">
+          <a href="#features" class="hover:text-white transition-colors">核心特性</a>
+          <a href="#preview" class="hover:text-white transition-colors">界面预览</a>
+          <a href="#install" class="hover:text-white transition-colors">安装指南</a>
+        </nav>
+
+        <div class="flex items-center gap-4">
+          <a href="https://github.com/lepfinder/RepoMind" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 text-sm font-semibold transition-all duration-200">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero 区域 -->
+    <section class="max-w-7xl mx-auto px-6 pt-20 pb-16 text-center relative">
+      <div class="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-500 text-xs font-semibold mb-8">
+        <span class="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse"></span>
+        本地 GitHub 项目管理利器
+      </div>
+      
+      <h1 class="text-4xl sm:text-6xl font-extrabold font-outfit text-white tracking-tight leading-tight max-w-4xl mx-auto">
+        掌控你的本地仓库 <br>
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 via-cyan-400 to-indigo-400">
+          打造专属的个人项目智库
+        </span>
+      </h1>
+      
+      <p class="mt-6 text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
+        RepoMind 是一款轻量、极速的本地 GitHub 项目大屏与分析面板。一键扫描多目录，自动对比远端提交状态，分组聚合你的所有代码资产。
+      </p>
+
+      <div class="mt-10 flex flex-wrap justify-center gap-4">
+        <a href="#install" class="px-6 py-3.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-semibold transition-all duration-200 shadow-lg shadow-brand-500/20 hover:scale-[1.02] active:scale-95">
+          立即安装体验
+        </a>
+        <a href="#features" class="px-6 py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.02]">
+          了解核心功能
+        </a>
+      </div>
+
+      <!-- 炫酷的产品主视图 Mockup -->
+      <div id="preview" class="mt-16 relative mx-auto max-w-5xl rounded-2xl border border-white/10 bg-slate-900/40 p-3 shadow-2xl backdrop-blur-sm">
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent z-10 rounded-2xl"></div>
+        <div class="rounded-xl border border-white/5 overflow-hidden shadow-inner bg-slate-950">
+          <!-- Mockup Header -->
+          <div class="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-slate-900/50">
+            <div class="flex gap-2">
+              <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+            </div>
+            <div class="text-xs text-slate-500 font-mono">localhost:3000 (RepoMind Panel)</div>
+            <div class="w-6"></div>
+          </div>
+          <!-- Mockup Body -->
+          <div class="p-6 text-left space-y-6 select-none opacity-90">
+            <div class="flex items-center justify-between border-b border-white/5 pb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-lg font-bold text-white">RepoMind</span>
+                  <span class="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">本地 GitHub 项目智库</span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1">42 projects indexed</div>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <span class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg">项目集</span>
+                <span class="px-3 py-1.5 bg-brand-600 text-white rounded-lg flex items-center gap-1">
+                  <svg class="w-3 h-3 animate-pulse" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3"/></svg>
+                  同步扫描中
+                </span>
+              </div>
+            </div>
+
+            <!-- Cards Row Mock -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Card 1 -->
+              <div class="border border-white/5 bg-slate-900/50 p-4 rounded-xl space-y-3">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h3 class="font-bold text-sm text-slate-200">RepoMind</h3>
+                    <p class="text-xs text-slate-500">lepfinder/RepoMind</p>
+                  </div>
+                  <span class="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">TypeScript</span>
+                </div>
+                <p class="text-xs text-slate-400 line-clamp-2">本地 GitHub 项目个人智库与比对扫描工具面板。</p>
+                <div class="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-white/5">
+                  <span>Commit: 2a9e1ff</span>
+                  <span class="text-emerald-400">已同步</span>
+                </div>
+              </div>
+              <!-- Card 2 -->
+              <div class="border border-white/5 bg-slate-900/50 p-4 rounded-xl space-y-3">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h3 class="font-bold text-sm text-slate-200">react-flow</h3>
+                    <p class="text-xs text-slate-500">xyflow/xyflow</p>
+                  </div>
+                  <span class="text-[10px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded border border-yellow-500/20">JavaScript</span>
+                </div>
+                <p class="text-xs text-slate-400 line-clamp-2">Node-based UI for creating interactive flowcharts and graphs.</p>
+                <div class="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-white/5">
+                  <span>Commit: 9b2d8c3</span>
+                  <span class="text-amber-400">本地落后 2 个提交</span>
+                </div>
+              </div>
+              <!-- Card 3 -->
+              <div class="border border-white/5 bg-slate-900/50 p-4 rounded-xl space-y-3">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h3 class="font-bold text-sm text-slate-200">fastapi-app</h3>
+                    <p class="text-xs text-slate-500">tiangolo/fastapi</p>
+                  </div>
+                  <span class="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded border border-green-500/20">Python</span>
+                </div>
+                <p class="text-xs text-slate-400 line-clamp-2">FastAPI framework, high performance, easy to learn, fast to code.</p>
+                <div class="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-white/5">
+                  <span>Commit: 7f8b9e1</span>
+                  <span class="text-emerald-400">已同步</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 特性介绍 -->
+    <section id="features" class="max-w-7xl mx-auto px-6 py-24 border-t border-white/5 relative">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-3xl font-extrabold font-outfit text-white">高效、直观、懂你的工作流</h2>
+        <p class="mt-4 text-slate-400">告别在终端来回切换 `cd` 和 `git status` 的繁琐过程，用一张看板洞察所有项目。</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- 特性 1 -->
+        <div class="bg-slate-900/20 border border-white/5 p-8 rounded-2xl hover:border-brand-500/20 transition-all duration-300 group">
+          <div class="w-12 h-12 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">秒级全盘扫描</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            瞬间扫描指定本地目录下的所有 Git 仓库，智能读取分支、提交哈希与主要开发语言。
+          </p>
+        </div>
+
+        <!-- 特性 2 -->
+        <div class="bg-slate-900/20 border border-white/5 p-8 rounded-2xl hover:border-brand-500/20 transition-all duration-300 group">
+          <div class="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">多项目组 (Workspaces)</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            自由聚合不同物理路径下的相关仓库，例如将所有后端微服务或微前端工程划入一个项目组，进行聚合管理。
+          </p>
+        </div>
+
+        <!-- 特性 3 -->
+        <div class="bg-slate-900/20 border border-white/5 p-8 rounded-2xl hover:border-brand-500/20 transition-all duration-300 group">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">分支状态实时比对</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            自动拉取并检测本地分支与 GitHub 远端分支的领先/落后提交数量，拒绝提交冲突与落后的本地代码。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 安装指南 -->
+    <section id="install" class="max-w-4xl mx-auto px-6 py-20 border-t border-white/5">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-extrabold font-outfit text-white">开始掌控你的项目库</h2>
+        <p class="mt-3 text-slate-400">只需简单三步，即可在本地开启 RepoMind 大屏看板。</p>
+      </div>
+
+      <div class="bg-slate-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-sm shadow-xl space-y-6">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <span class="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+            <span class="text-sm font-semibold text-slate-200">克隆项目并安装依赖</span>
+          </div>
+          <pre class="bg-slate-950 p-4 rounded-xl border border-white/5 text-xs md:text-sm font-mono text-slate-300 overflow-x-auto">
+git clone https://github.com/lepfinder/RepoMind.git
+cd RepoMind
+npm install</pre>
+        </div>
+
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <span class="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+            <span class="text-sm font-semibold text-slate-200">运行初始化扫描配置</span>
+          </div>
+          <pre class="bg-slate-950 p-4 rounded-xl border border-white/5 text-xs md:text-sm font-mono text-slate-300 overflow-x-auto">
+npm run scan</pre>
+        </div>
+
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <span class="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+            <span class="text-sm font-semibold text-slate-200">启动本地客户端大屏</span>
+          </div>
+          <pre class="bg-slate-950 p-4 rounded-xl border border-white/5 text-xs md:text-sm font-mono text-slate-300 overflow-x-auto">
+npm run dev</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="border-t border-white/5 bg-slate-950/80 py-12 text-center text-xs text-slate-500">
+      <div class="max-w-7xl mx-auto px-6 space-y-4">
+        <p>RepoMind - 本地项目管理大屏看板</p>
+        <p class="text-slate-600">© 2026 RepoMind. Built for developers by developers.</p>
+      </div>
+    </footer>
+  </div>
+
+</body>
+</html>
