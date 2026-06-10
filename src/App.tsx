@@ -311,12 +311,16 @@ export default function App() {
     return (
       <ProjectDetail
         project={selectedProject}
-        onBack={() => setSelectedProject(null)}
+        onBack={() => {
+          setSelectedProject(null)
+          loadProjects()
+        }}
         langColor={getLangColor(selectedProject.language)}
         onDeleted={() => {
           setSelectedProject(null)
           loadProjects()
         }}
+        onSync={loadProjects}
       />
     )
   }
