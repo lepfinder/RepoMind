@@ -8,6 +8,9 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { upsertProject, db } from '../server/db.mjs';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');

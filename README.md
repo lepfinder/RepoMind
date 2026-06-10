@@ -91,16 +91,19 @@ RepoMind/
 
 ### 2. 配置扫描目录
 
-默认扫描目录为 `~/workspace/github`。如果你的 GitHub 项目存放在其他路径，请设置环境变量：
+默认扫描目录为 `~/workspace/github`。如果你的 GitHub 项目存放在其他路径，请复制 `.env.example` 为 `.env` 并修改：
 
 ```bash
-# 在 .zshrc / .bashrc 中添加：
-export REPO_MIND_DIR="/your/custom/path/to/github/projects"
+cp .env.example .env
+# 编辑 .env，设置你的项目目录路径：
+# REPO_MIND_DIR=/Users/yourname/Projects/GitHub
 ```
 
-或在启动命令时传入：
+也可通过环境变量覆盖：
 
 ```bash
+export REPO_MIND_DIR="/your/custom/path/to/github/projects"
+# 或在启动命令时传入
 REPO_MIND_DIR="/your/custom/path" npm run dev
 ```
 
