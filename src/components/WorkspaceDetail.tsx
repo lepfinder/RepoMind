@@ -396,7 +396,7 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                         <p className="whitespace-pre-wrap">{msg.content}</p>
                       ) : msg.isComplete === false && (activities.length > 0 || analyzing) ? (
                         <>
-                          {activities.length > 0 && (
+                          {activities.length > 0 ? (
                             <div className="space-y-0.5 py-0.5 font-mono text-[11px] mb-2">
                               {activities.map((a, i) => (
                                 <div key={i} className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
