@@ -1217,38 +1217,65 @@ export default function ProjectDetail({ project: projectProp, onBack, langColor,
                     }`}>
                       {msg.role === 'user' ? (
                         <p className="whitespace-pre-wrap">{msg.content}</p>
-                      ) : msg.isComplete === false && !msg.content && (activities.length > 0 || analyzing) ? (
-                        activities.length > 0 ? (
-                          <div className="space-y-0.5 py-0.5 font-mono text-[11px]">
-                            {activities.map((a, i) => (
-                              <div key={i} className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
+                      ) : msg.isComplete === false && (activities.length > 0 || analyzing) ? (
+                        <>
+                          {activities.length > 0 && (
+                            <div className="space-y-0.5 py-0.5 font-mono text-[11px] mb-2">
+                              {activities.map((a, i) => (
+                                <div key={i} className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
+                                  <span className="text-gray-300 dark:text-gray-600 select-none">┊</span>
+                                  <span>{a.icon}</span>
+                                  {a.done ? (
+                                    <span className="text-gray-500 dark:text-gray-400">{a.text}</span>
+                                  ) : (
+                                    <span className="text-gray-400 dark:text-gray-500 animate-pulse">{a.text}</span>
+                                  )}
+                                </div>
+                              ))}
+                              <div className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
                                 <span className="text-gray-300 dark:text-gray-600 select-none">┊</span>
-                                <span>{a.icon}</span>
-                                {a.done ? (
-                                  <span className="text-gray-500 dark:text-gray-400">{a.text}</span>
-                                ) : (
-                                  <span className="text-gray-400 dark:text-gray-500 animate-pulse">{a.text}</span>
-                                )}
+                                <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                                <span className="animate-pulse">working…</span>
+                                <button
+                                  onClick={stopAnalysis}
+                                  className="ml-2 px-2 py-0.5 text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition cursor-pointer"
+                                >
+                                  停止
+                                </button>
                               </div>
-                            ))}
-                            <div className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
-                              <span className="text-gray-300 dark:text-gray-600 select-none">┊</span>
-                              <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                              <span className="animate-pulse">working…</span>
-                              <button
-                                onClick={stopAnalysis}
-                                className="ml-2 px-2 py-0.5 text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition cursor-pointer"
-                              >
-                                停止
-                              </button>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 py-1">
-                            <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                            <span className="text-[10px] text-gray-400">思考中...</span>
-                          </div>
-                        )
+                          ) : (
+                            <div className="flex items-center gap-2 py-1">
+                              <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                              <span className="text-[10px] text-gray-400">思考中...</span>
+                            </div>
+                          )}
+                          {msg.content && (
+                            <div className="prose prose-sm dark:prose-invert max-w-none
+                              [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
+                              [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
+                              [&_h3]:text-[12px] [&_h3]:font-medium [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-gray-700 dark:[&_h3]:text-gray-200
+                              [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
+                              [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
+                              [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
+                              [&_li]:text-[12px] [&_li]:my-0.5 [&_li]:text-gray-700 dark:[&_li]:text-gray-300
+                              [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono [&_code]:text-purple-600 dark:[&_code]:text-purple-300
+                              [&_pre]:bg-gray-900 dark:[&_pre]:bg-gray-950 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-gray-800 dark:[&_pre]:border-gray-700
+                              [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:py-0 [&_pre_code]:text-gray-200 [&_pre_code]:text-[11px] [&_pre_code]:font-mono
+                              [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 dark:[&_blockquote]:text-gray-400 [&_blockquote]:italic
+                              [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
+                              [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
+                              [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
+                              [&_hr]:border-gray-200 dark:[&_hr]:border-gray-700 [&_hr]:my-3
+                              [&_strong]:text-gray-900 dark:[&_strong]:text-white [&_strong]:font-semibold
+                              [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2
+                            ">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={darkMarkdownComponents}>
+                                {msg.content}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+                        </>
                       ) : msg.content?.startsWith('分析出错:') || msg.content?.startsWith('请求失败:') ? (
                         <div className="text-xs text-red-500 dark:text-red-400">
                           <p className="whitespace-pre-wrap">{msg.content}</p>
