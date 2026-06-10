@@ -340,10 +340,10 @@ export default function App() {
               <button
                 onClick={() => setView('workspaces')}
                 className="px-3.5 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center shadow-sm active:scale-95 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer"
-                title="项目组 - 跨项目对比分析"
+                title="项目集 - 跨项目对比分析"
               >
                 <Layers className="w-4 h-4 mr-1.5" />
-                项目组
+                项目集
               </button>
               <a
                 href="https://github.com/trending"
@@ -356,7 +356,7 @@ export default function App() {
                   <path d="M.75 8a.75.75 0 0 1 .75-.75h5.69L5.22 5.28a.75.75 0 1 1 1.06-1.06l3.25 3.25a.75.75 0 0 1 0 1.06L6.28 11.78a.75.75 0 0 1-1.06-1.06l1.97-1.97H1.5A.75.75 0 0 1 .75 8Z" />
                   <path d="M15.25 8a.75.75 0 0 1-.75.75H8.81l1.97 1.97a.75.75 0 1 1-1.06 1.06L6.47 8.53a.75.75 0 0 1 0-1.06l3.25-3.25a.75.75 0 1 1 1.06 1.06L8.81 7.25h5.69a.75.75 0 0 1 .75.75Z" />
                 </svg>
-                Trending
+                Github Trending
               </a>
               <button
                 onClick={() => setShowImportModal(true)}
@@ -393,11 +393,10 @@ export default function App() {
                 <button
                   onClick={triggerScan}
                   disabled={scanning}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition active:scale-95 shadow-sm flex items-center justify-center gap-1.5 ${
-                    scanning
-                      ? 'bg-blue-600/50 text-white/70 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition active:scale-95 shadow-sm flex items-center justify-center gap-1.5 ${scanning
+                    ? 'bg-blue-600/50 text-white/70 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer'
+                    }`}
                 >
                   {scanning ? (
                     <>
@@ -514,37 +513,37 @@ export default function App() {
             </div>
           )}
 
-        {loading && (
-          <div className="text-center py-20">
-            <div className="inline-block w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-400 mt-4">Loading projects...</p>
-          </div>
-        )}
+          {loading && (
+            <div className="text-center py-20">
+              <div className="inline-block w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-gray-400 mt-4">Loading projects...</p>
+            </div>
+          )}
 
-        {loaded && filtered.length === 0 && (
-          <div className="text-center py-20">
-            <p className="text-gray-400 text-lg">No projects found</p>
-          </div>
-        )}
+          {loaded && filtered.length === 0 && (
+            <div className="text-center py-20">
+              <p className="text-gray-400 text-lg">No projects found</p>
+            </div>
+          )}
 
-        {loaded && filtered.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(project => (
-              <ProjectCard
-                key={project.name}
-                project={project}
-                langColor={getLangColor(project.language)}
-                onClick={() => setSelectedProject(project)}
-              />
-            ))}
-          </div>
-        )}
+          {loaded && filtered.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filtered.map(project => (
+                <ProjectCard
+                  key={project.name}
+                  project={project}
+                  langColor={getLangColor(project.language)}
+                  onClick={() => setSelectedProject(project)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </main>
       {showImportModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl max-w-md w-full shadow-2xl p-6 relative overflow-hidden transition-all duration-300">
-            
+
             {/* 头部标题与取消按钮 */}
             <div className="flex items-center justify-between mb-4 select-none">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -599,7 +598,7 @@ export default function App() {
                 ) : (
                   <div className="space-y-4">
                     <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto" />
-                    
+
                     {/* 物理步骤展示条 */}
                     <div className="flex justify-center items-center gap-1 text-[10px] text-gray-400 dark:text-gray-600 mb-2 select-none">
                       <span className={`px-2 py-0.5 rounded-full border ${importStatus === 'analyzing' ? 'text-blue-500 border-blue-500 font-bold bg-blue-50/20' : 'border-gray-200 dark:border-gray-800'}`}>解析</span>

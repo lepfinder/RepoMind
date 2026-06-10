@@ -1,15 +1,25 @@
 {
   "manifest_version": 3,
-  "name": "github-index",
+  "name": "RepoMind",
   "version": "1.0.0",
-  "description": "一键将 GitHub 项目导入到本地 github-index",
-  "permissions": ["activeTab"],
-  "host_permissions": ["http://localhost:3001/*"],
+  "description": "一键将 GitHub 项目导入到本地 RepoMind",
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:3001/*"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://github.com/*/*"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "https://github.com/*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
   ],

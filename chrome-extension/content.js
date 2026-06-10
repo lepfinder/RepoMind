@@ -1,7 +1,7 @@
 const API_BASE = 'http://localhost:3001';
 const FRONTEND_BASE = 'http://localhost:3000';
-const IMPORT_BTN_ID = 'github-index-import-btn';
-const VIEW_BTN_ID = 'github-index-view-btn';
+const IMPORT_BTN_ID = 'RepoMind-import-btn';
+const VIEW_BTN_ID = 'RepoMind-view-btn';
 
 function getRepoInfo() {
   const parts = location.pathname.split('/').filter(Boolean);
@@ -23,9 +23,9 @@ function createImportButton() {
     <svg class="gi-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
       <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
     </svg>
-    <span class="gi-text">导入到 github-index</span>
+    <span class="gi-text">导入到 RepoMind</span>
   `;
-  btn.title = '导入到本地 github-index';
+  btn.title = '导入到本地 RepoMind';
   return btn;
 }
 
@@ -39,9 +39,9 @@ function createViewButton(repoName) {
     <svg class="gi-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
       <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/>
     </svg>
-    <span class="gi-text">在 github-index 查看</span>
+    <span class="gi-text">在 RepoMind 查看</span>
   `;
-  btn.title = '在 github-index 中查看项目详情';
+  btn.title = '在 RepoMind 中查看项目详情';
   return btn;
 }
 
@@ -66,12 +66,12 @@ function setBtnState(btn, state, message) {
       textEl.textContent = message || '失败，点击重试';
       setTimeout(() => {
         btn.classList.remove('gi-error');
-        textEl.textContent = '导入到 github-index';
+        textEl.textContent = '导入到 RepoMind';
       }, 3000);
       break;
     default:
       btn.disabled = false;
-      textEl.textContent = '导入到 github-index';
+      textEl.textContent = '导入到 RepoMind';
   }
 }
 
@@ -131,7 +131,7 @@ async function handleImport(btn) {
           } else {
             setBtnState(btn, 'loading', statusMap[data.status] || data.message || '处理中...');
           }
-        } catch {}
+        } catch { }
       }
     }
     // 如果流正常结束但没收到 done
@@ -172,7 +172,7 @@ async function injectButton() {
       const projects = await res.json();
       projectExists = projects.some(p => p.name === info.repo);
     }
-  } catch {}
+  } catch { }
 
   if (projectExists) {
     // 已存在 -> 显示"查看详情"按钮

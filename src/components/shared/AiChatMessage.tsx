@@ -91,7 +91,7 @@ const darkMarkdownComponents = {
     }
 
     return (
-      <code className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-blue-800 dark:text-blue-300 font-mono text-[11px]" {...props}>
+      <code className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-gray-900 dark:text-gray-100 font-mono text-[11px]" {...props}>
         {children}
       </code>
     )
