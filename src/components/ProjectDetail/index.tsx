@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Info, BookOpen, AlertTriangle } from 'lucide-react'
 import type { Project, ChatMessage, FileNode } from '../../types'
 import { toolIcon, toolVerb, shortLabel } from '../../constants/toolEmoji'
+import { parseSSEStream } from '../../utils/sse'
 import ProjectHeader from './ProjectHeader'
 import FileTreePanel from './FileTreePanel'
 import ProjectOverview from './ProjectOverview'
@@ -330,59 +331,36 @@ export default function ProjectDetail({
         signal: abortController.signal,
       })
 
-      const reader = response.body?.getReader()
-      if (!reader) return
-
-      const decoder = new TextDecoder()
-      let buffer = ''
       let accumulated = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              if (data.status === 'chunk' && data.content) {
-                accumulated += data.content
-                setMessages(prev =>
-                  prev.map(m => (m.id === assistantId ? { ...m, content: accumulated } : m))
-                )
-              } else if (data.status === 'tool') {
-                const tool = data.tool || ''
-                const label = data.label || ''
-                const icon = toolIcon(tool)
-                if (!data.done && label) {
-                  setActivities(prev => {
-                    const next = [...prev, { icon, text: `${toolVerb(tool)}  ${shortLabel(label)}` }]
-                    // thinking 心跳只保留最新的，清除之前的
-                    if (tool === 'thinking') {
-                      return next.filter((a, i) => i === next.length - 1 || a.icon !== '🤔')
-                    }
-                    return next
-                  })
-                }
-              } else if (data.status === 'thinking') {
-                setActivities(prev => [...prev, { icon: '🤔', text: data.message || 'thinking…' }])
-              } else if (data.status === 'error') {
-                setMessages(prev =>
-                  prev.map(m =>
-                    m.id === assistantId ? { ...m, content: `分析出错: ${data.message}`, isComplete: true } : m
-                  )
-                )
+      await parseSSEStream(response, (data) => {
+        if (data.status === 'chunk' && data.content) {
+          accumulated += data.content
+          setMessages(prev =>
+            prev.map(m => (m.id === assistantId ? { ...m, content: accumulated } : m))
+          )
+        } else if (data.status === 'tool') {
+          const tool = data.tool || ''
+          const label = data.label || ''
+          const icon = toolIcon(tool)
+          if (!data.done && label) {
+            setActivities(prev => {
+              const next = [...prev, { icon, text: `${toolVerb(tool)}  ${shortLabel(label)}` }]
+              if (tool === 'thinking') {
+                return next.filter((a, i) => i === next.length - 1 || a.icon !== '🤔')
               }
-            } catch {
-              /* skip */
-            }
+              return next
+            })
           }
+        } else if (data.status === 'thinking') {
+          setActivities(prev => [...prev, { icon: '🤔', text: data.message || 'thinking…' }])
+        } else if (data.status === 'error') {
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === assistantId ? { ...m, content: `分析出错: ${data.message}`, isComplete: true } : m
+            )
+          )
         }
-      }
+      })
     } catch (error: any) {
       setMessages(prev =>
         prev.map(m => (m.id === assistantId ? { ...m, content: `请求失败: ${error.message}`, isComplete: true } : m))

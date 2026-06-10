@@ -1,40 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { ArrowLeft, Layers, FolderOpen, Plus, Trash2, Zap, Search, ChevronDown, ChevronRight } from 'lucide-react'
 import { toolIcon, toolVerb, shortLabel } from '../constants/toolEmoji'
+import { parseSSEStream } from '../utils/sse'
 import AiChatMessage from './shared/AiChatMessage'
 
 const API_BASE = 'http://localhost:3001'
 
-interface Project {
-  id: number
-  name: string
-  language: string
-  local_path: string
-  stars: number
-}
-
-interface Workspace {
-  id: number
-  name: string
-  description: string
-  projects: Project[]
-}
-
-interface AnalysisDetail {
-  project_id: number
-  project_name?: string
-  answer: string
-}
-
-interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: string
-  isComplete?: boolean
-  sessionId?: number
-  analyses?: AnalysisDetail[]
-}
+import type { Workspace, WorkspaceProject, AnalysisDetail, ChatMessage } from '../types'
 
 interface Props {
   workspaceId: number
@@ -43,7 +15,7 @@ interface Props {
 
 export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
-  const [allProjects, setAllProjects] = useState<Project[]>([])
+  const [allProjects, setAllProjects] = useState<WorkspaceProject[]>([])
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [activities, setActivities] = useState<{ icon: string, text: string, done?: boolean }[]>([])
   const [analyzing, setAnalyzing] = useState(false)
@@ -205,52 +177,32 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
         signal: ac.signal,
       })
 
-      const reader = response.body?.getReader()
-      if (!reader) return
-
-      const decoder = new TextDecoder()
-      let buffer = ''
       let accumulated = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const data = JSON.parse(line.slice(6))
-
-            if (data.status === 'chunk' && data.content) {
-              accumulated += data.content
-              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: accumulated } : m))
-            } else if (data.status === 'phase') {
-              setActivities(prev => [...prev, { icon: '🔄', text: data.message }])
-            } else if (data.status === 'project_done') {
-              const icon = data.error ? '❌' : '✅'
-              setActivities(prev => [...prev, { icon, text: `${data.project} ${data.error ? '失败' : '完成'}` }])
-            } else if (data.status === 'tool') {
-              const tool = data.tool || ''
-              const label = data.label || ''
-              if (!data.done && label) {
-                setActivities(prev => {
-                  const next = [...prev, { icon: toolIcon(tool), text: `${toolVerb(tool)}  ${shortLabel(label)}` }]
-                  if (tool === 'thinking') {
-                    return next.filter((a, i) => i === next.length - 1 || a.icon !== '🤔')
-                  }
-                  return next
-                })
+      await parseSSEStream(response, (data) => {
+        if (data.status === 'chunk' && data.content) {
+          accumulated += data.content
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: accumulated } : m))
+        } else if (data.status === 'phase') {
+          setActivities(prev => [...prev, { icon: '🔄', text: data.message }])
+        } else if (data.status === 'project_done') {
+          const icon = data.error ? '❌' : '✅'
+          setActivities(prev => [...prev, { icon, text: `${data.project} ${data.error ? '失败' : '完成'}` }])
+        } else if (data.status === 'tool') {
+          const tool = data.tool || ''
+          const label = data.label || ''
+          if (!data.done && label) {
+            setActivities(prev => {
+              const next = [...prev, { icon: toolIcon(tool), text: `${toolVerb(tool)}  ${shortLabel(label)}` }]
+              if (tool === 'thinking') {
+                return next.filter((a, i) => i === next.length - 1 || a.icon !== '🤔')
               }
-            } else if (data.status === 'error') {
-              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: `分析出错: ${data.message}`, isComplete: true } : m))
-            }
-          } catch {}
+              return next
+            })
+          }
+        } else if (data.status === 'error') {
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: `分析出错: ${data.message}`, isComplete: true } : m))
         }
-      }
+      })
     } catch (error: any) {
       if (error.name !== 'AbortError') {
         setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: `请求失败: ${error.message}` } : m))

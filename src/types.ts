@@ -40,11 +40,21 @@ export interface ChatMessage {
   analyses?: AnalysisDetail[];
 }
 
+export interface WorkspaceProject {
+  id: number;
+  name: string;
+  language: string;
+  local_path?: string;
+  stars: number;
+}
+
 export interface Workspace {
   id: number;
   name: string;
   description: string;
-  projects: Project[];
+  projects: WorkspaceProject[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface FileNode {

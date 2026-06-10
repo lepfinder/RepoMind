@@ -6,7 +6,7 @@ export const PROSE_CLS = `prose prose-sm dark:prose-invert max-w-none
   [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
   [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
   [&_li]:text-[12px] [&_li]:my-0.5 [&_li]:text-gray-700 dark:[&_li]:text-gray-300
-  [&_code]:bg-gray-150 dark:[&_code]:bg-gray-750 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono [&_code]:text-purple-600 dark:[&_code]:text-purple-300
+  [&_code]:bg-gray-100 dark:[&_code]:bg-gray-800 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono [&_code]:text-blue-800 dark:[&_code]:text-blue-300
   [&_pre]:bg-gray-900 dark:[&_pre]:bg-gray-950 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-gray-800 dark:[&_pre]:border-gray-700
   [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:py-0 [&_pre_code]:text-gray-200 [&_pre_code]:text-[11px] [&_pre_code]:font-mono
   [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 dark:[&_blockquote]:text-gray-400 [&_blockquote]:italic

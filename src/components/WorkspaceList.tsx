@@ -3,21 +3,7 @@ import { Layers, Plus, Trash2, FolderOpen, ArrowLeft, ChevronRight } from 'lucid
 
 const API_BASE = 'http://localhost:3001'
 
-interface Project {
-  id: number
-  name: string
-  language: string
-  stars: number
-}
-
-interface Workspace {
-  id: number
-  name: string
-  description: string
-  projects: Project[]
-  created_at: string
-  updated_at: string
-}
+import type { Workspace, WorkspaceProject } from '../types'
 
 interface Props {
   onBack: () => void
@@ -26,7 +12,7 @@ interface Props {
 
 export default function WorkspaceList({ onBack, onOpenWorkspace }: Props) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [allProjects, setAllProjects] = useState<Project[]>([])
+  const [allProjects, setAllProjects] = useState<WorkspaceProject[]>([])
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
