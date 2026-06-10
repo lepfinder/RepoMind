@@ -6,6 +6,26 @@ import rehypeRaw from 'rehype-raw'
 
 const API_BASE = 'http://localhost:3001'
 
+const PROSE_CLS = `prose prose-sm dark:prose-invert max-w-none
+  [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
+  [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
+  [&_h3]:text-[12px] [&_h3]:font-medium [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-gray-700 dark:[&_h3]:text-gray-200
+  [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
+  [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
+  [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
+  [&_li]:text-[12px] [&_li]:my-0.5 [&_li]:text-gray-700 dark:[&_li]:text-gray-300
+  [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono [&_code]:text-purple-600 dark:[&_code]:text-purple-300
+  [&_pre]:bg-gray-900 dark:[&_pre]:bg-gray-950 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-gray-800 dark:[&_pre]:border-gray-700
+  [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:py-0 [&_pre_code]:text-gray-200 [&_pre_code]:text-[11px] [&_pre_code]:font-mono
+  [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 dark:[&_blockquote]:text-gray-400 [&_blockquote]:italic
+  [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
+  [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
+  [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
+  [&_hr]:border-gray-200 dark:[&_hr]:border-gray-700 [&_hr]:my-3
+  [&_strong]:text-gray-900 dark:[&_strong]:text-white [&_strong]:font-semibold
+  [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2
+`
+
 const TOOL_EMOJI: Record<string, string> = {
   // Hermes tools
   read_file: '📖', search_files: '🔍', terminal: '⚡',
@@ -78,9 +98,9 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
   const [inputValue, setInputValue] = useState('')
   const [showAddProject, setShowAddProject] = useState(false)
   const [search, setSearch] = useState('')
-  // 历史问答弹窗状态
+  // 历史问答侧边栏状态
   const [showHistory, setShowHistory] = useState(false)
-  const [selectedQuestion, setSelectedQuestion] = useState<number | null>(null)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const [expandedSessions, setExpandedSessions] = useState<Record<number, boolean>>({})
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -171,7 +191,6 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
       }
       if (e.key === 'Escape') {
         setShowHistory(false)
-        setSelectedQuestion(null)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -288,7 +307,39 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
       setAnalyzing(false)
       setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, isComplete: true } : m))
       setActivities([])
+
+      // 流式结束后从后端拉取本次 session 的各项目独立分析结果
+      try {
+        const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/sessions`)
+        const sessions = await res.json()
+        if (sessions.length > 0) {
+          const latest = sessions[sessions.length - 1]
+          if (latest.analyses && latest.analyses.length > 0) {
+            const analysesWithNames = latest.analyses.map((a: any) => {
+              const proj = allProjects.find(p => p.id === a.project_id)
+              return { ...a, project_name: proj?.name || `项目#${a.project_id}` }
+            })
+            setMessages(prev => prev.map(m =>
+              m.id === assistantId
+                ? { ...m, sessionId: latest.id, analyses: analysesWithNames }
+                : m
+            ))
+          }
+        }
+      } catch {}
     }
+  }
+
+  const scrollToMessage = (msgId: string) => {
+    setShowHistory(false)
+    setTimeout(() => {
+      const el = document.getElementById(msgId)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setHighlightedId(msgId)
+        setTimeout(() => setHighlightedId(null), 2000)
+      }
+    }, 50)
   }
 
   const filteredProjects = allProjects.filter(p =>
@@ -386,7 +437,12 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
             ) : (
               <>
                 {messages.map(msg => (
-                  <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    key={msg.id}
+                    id={msg.id}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-500 ${
+                      highlightedId === msg.id ? 'ring-2 ring-blue-400 dark:ring-blue-500 ring-offset-2 rounded-xl' : ''
+                    }`}>
                     <div className={`max-w-[90%] rounded-xl px-4 py-3 ${
                       msg.role === 'user'
                         ? 'bg-blue-600 text-white text-xs leading-relaxed rounded-br-md'
@@ -421,25 +477,7 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                           {msg.content && (
                             <div>
                               {/* 汇总内容 */}
-                              <div className="prose prose-sm dark:prose-invert max-w-none
-                                [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
-                                [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
-                                [&_h3]:text-[12px] [&_h3]:font-medium [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-gray-700 dark:[&_h3]:text-gray-200
-                                [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
-                                [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
-                                [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
-                                [&_li]:text-[12px] [&_li]:my-0.5 [&_li]:text-gray-700 dark:[&_li]:text-gray-300
-                                [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono [&_code]:text-purple-600 dark:[&_code]:text-purple-300
-                                [&_pre]:bg-gray-900 dark:[&_pre]:bg-gray-950 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-gray-800 dark:[&_pre]:border-gray-700
-                                [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:py-0 [&_pre_code]:text-gray-200 [&_pre_code]:text-[11px] [&_pre_code]:font-mono
-                                [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 dark:[&_blockquote]:text-gray-400 [&_blockquote]:italic
-                                [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
-                                [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
-                                [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
-                                [&_hr]:border-gray-200 dark:[&_hr]:border-gray-700 [&_hr]:my-3
-                                [&_strong]:text-gray-900 dark:[&_strong]:text-white [&_strong]:font-semibold
-                                [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2
-                              ">
+                              <div className={PROSE_CLS}>
                                 <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                                   {msg.content}
                                 </ReactMarkdown>
@@ -459,34 +497,23 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                                     )}
                                     <span>查看各项目独立分析 ({msg.analyses.length})</span>
                                   </button>
-
-                                  {expandedSessions[msg.sessionId!] && (
-                                    <div className="mt-2 space-y-2">
-                                      {msg.analyses.map((analysis, idx) => (
-                                        <details key={idx} className="group">
-                                          <summary className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg cursor-pointer text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition">
-                                            <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
-                                        <span>{analysis.project_name}</span>
-                                      </summary>
-                                      <div className="mt-2 px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                                        <div className="prose prose-sm dark:prose-invert max-w-none text-[11px]
-                                          [&_h1]:text-xs [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-1
-                                          [&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1
-                                          [&_p]:text-[11px] [&_p]:my-1 [&_p]:leading-relaxed
-                                          [&_ul]:list-disc [&_ul]:pl-3 [&_ul]:my-1 [&_ul]:text-[11px]
-                                          [&_ol]:list-decimal [&_ol]:pl-3 [&_ol]:my-1 [&_ol]:text-[11px]
-                                          [&_li]:text-[11px] [&_li]:my-0.5
-                                          [&_code]:bg-gray-100 dark:[&_code]:bg-gray-800 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[10px]
-                                          [&_pre]:bg-gray-900 [&_pre]:p-2 [&_pre]:rounded [&_pre]:my-2 [&_pre]:text-[10px]
-                                          [&_table]:text-[10px] [&_th]:px-1.5 [&_th]:py-1 [&_td]:px-1.5 [&_td]:py-1
-                                        ">
-                                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                                            {analysis.answer}
-                                          </ReactMarkdown>
+                                  <div className="mt-2 space-y-2">
+                                    {expandedSessions[msg.sessionId!] && msg.analyses.map((analysis, idx) => (
+                                      <details key={idx} className="group">
+                                        <summary className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg cursor-pointer text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition">
+                                          <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
+                                          <span>{analysis.project_name}</span>
+                                        </summary>
+                                        <div className="mt-2 px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                                          <div className={PROSE_CLS}>
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                                              {analysis.answer}
+                                            </ReactMarkdown>
+                                          </div>
                                         </div>
-                                      </div>
-                                    </details>
-                                  ))}
+                                      </details>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -499,25 +526,7 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                       ) : msg.content ? (
                         <div>
                           {/* 汇总内容 */}
-                          <div className="prose prose-sm dark:prose-invert max-w-none
-                            [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:text-gray-900 dark:[&_h1]:text-white
-                            [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1.5 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100
-                            [&_h3]:text-[12px] [&_h3]:font-medium [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-gray-700 dark:[&_h3]:text-gray-200
-                            [&_p]:text-[12px] [&_p]:my-1.5 [&_p]:leading-relaxed [&_p]:text-gray-700 dark:[&_p]:text-gray-300
-                            [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1.5 [&_ul]:text-[12px]
-                            [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1.5 [&_ol]:text-[12px]
-                            [&_li]:text-[12px] [&_li]:my-0.5 [&_li]:text-gray-700 dark:[&_li]:text-gray-300
-                            [&_code]:bg-gray-100 dark:[&_code]:bg-gray-700/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono [&_code]:text-purple-600 dark:[&_code]:text-purple-300
-                            [&_pre]:bg-gray-900 dark:[&_pre]:bg-gray-950 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:my-2.5 [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-gray-800 dark:[&_pre]:border-gray-700
-                            [&_pre_code]:bg-transparent [&_pre_code]:px-0 [&_pre_code]:py-0 [&_pre_code]:text-gray-200 [&_pre_code]:text-[11px] [&_pre_code]:font-mono
-                            [&_blockquote]:border-l-2 [&_blockquote]:border-purple-500 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-[12px] [&_blockquote]:text-gray-500 dark:[&_blockquote]:text-gray-400 [&_blockquote]:italic
-                            [&_table]:w-full [&_table]:my-2 [&_table]:border-collapse
-                            [&_th]:bg-gray-50 dark:[&_th]:bg-gray-800 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:border [&_th]:border-gray-200 dark:[&_th]:border-gray-700
-                            [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-gray-200 dark:[&_td]:border-gray-700 [&_td]:text-[11px]
-                            [&_hr]:border-gray-200 dark:[&_hr]:border-gray-700 [&_hr]:my-3
-                            [&_strong]:text-gray-900 dark:[&_strong]:text-white [&_strong]:font-semibold
-                            [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a]:underline-offset-2
-                          ">
+                          <div className={PROSE_CLS}>
                             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                               {msg.content}
                             </ReactMarkdown>
@@ -538,26 +547,15 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                                 <span>查看各项目独立分析 ({msg.analyses.length})</span>
                               </button>
 
-                              {expandedSessions[msg.sessionId!] && (
-                                <div className="mt-2 space-y-2">
-                                  {msg.analyses.map((analysis, idx) => (
-                                    <details key={idx} className="group">
-                                      <summary className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg cursor-pointer text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition">
-                                        <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
+                              <div className="mt-2 space-y-2">
+                                {expandedSessions[msg.sessionId!] && msg.analyses.map((analysis, idx) => (
+                                  <details key={idx} className="group">
+                                    <summary className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg cursor-pointer text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition">
+                                      <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
                                       <span>{analysis.project_name}</span>
                                     </summary>
                                     <div className="mt-2 px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                                      <div className="prose prose-sm dark:prose-invert max-w-none text-[11px]
-                                        [&_h1]:text-xs [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-1
-                                        [&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1
-                                        [&_p]:text-[11px] [&_p]:my-1 [&_p]:leading-relaxed
-                                        [&_ul]:list-disc [&_ul]:pl-3 [&_ul]:my-1 [&_ul]:text-[11px]
-                                        [&_ol]:list-decimal [&_ol]:pl-3 [&_ol]:my-1 [&_ol]:text-[11px]
-                                        [&_li]:text-[11px] [&_li]:my-0.5
-                                        [&_code]:bg-gray-100 dark:[&_code]:bg-gray-800 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[10px]
-                                        [&_pre]:bg-gray-900 [&_pre]:p-2 [&_pre]:rounded [&_pre]:my-2 [&_pre]:text-[10px]
-                                        [&_table]:text-[10px] [&_th]:px-1.5 [&_th]:py-1 [&_td]:px-1.5 [&_td]:py-1
-                                      ">
+                                      <div className={PROSE_CLS}>
                                         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                                           {analysis.answer}
                                         </ReactMarkdown>
@@ -566,8 +564,8 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                                   </details>
                                 ))}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 py-1">
@@ -599,59 +597,42 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
         </div>
       </main>
 
-      {/* 历史问答弹窗 */}
+      {/* 历史问答侧边栏 */}
       {showHistory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowHistory(false); setSelectedQuestion(null) }} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-2xl max-h-[80vh] shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">历史问答记录</h3>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">按 <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-[10px] font-mono border border-gray-200 dark:border-gray-700">?</kbd> 切换</span>
-                <button onClick={() => { setShowHistory(false); setSelectedQuestion(null) }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
+        <div className="fixed right-0 top-0 bottom-0 z-50 w-80 flex flex-col bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 shadow-2xl">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 shrink-0">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">历史问答</h3>
+            <div className="flex items-center gap-2">
+              <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-[10px] font-mono text-gray-400 border border-gray-200 dark:border-gray-700">?</kbd>
+              <button onClick={() => setShowHistory(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {messages.filter(m => m.role === 'user').length === 0 ? (
-                <p className="text-center text-gray-400 py-8">暂无问答记录</p>
-              ) : (
-                <div className="space-y-2">
-                  {messages.map((msg, idx) => {
-                    if (msg.role !== 'user') return null
-                    const answer = messages[idx + 1]?.role === 'assistant' ? messages[idx + 1] : null
-                    const isSelected = selectedQuestion === idx
-                    return (
-                      <div key={msg.id}>
-                        <button
-                          onClick={() => setSelectedQuestion(isSelected ? null : idx)}
-                          className={`w-full text-left px-4 py-3 rounded-lg transition cursor-pointer ${
-                            isSelected
-                              ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                              : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <span className="text-blue-500 mt-0.5 shrink-0">Q</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-gray-900 dark:text-white line-clamp-2">{msg.content}</p>
-                              <p className="text-[11px] text-gray-400 mt-1">{new Date(msg.timestamp).toLocaleString('zh-CN')}</p>
-                            </div>
-                            <ChevronRight className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
-                          </div>
-                        </button>
-                        {isSelected && answer && (
-                          <div className="mt-1 ml-7 mr-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 max-h-60 overflow-y-auto prose prose-sm dark:prose-invert max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{answer.content}</ReactMarkdown>
-                          </div>
-                        )}
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+            {messages.filter(m => m.role === 'user').length === 0 ? (
+              <p className="text-center text-gray-400 py-8 text-sm">暂无问答记录</p>
+            ) : (
+              messages.map((msg, idx) => {
+                if (msg.role !== 'user') return null
+                return (
+                  <button
+                    key={msg.id}
+                    onClick={() => scrollToMessage(msg.id)}
+                    className="w-full text-left px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 transition cursor-pointer group"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-500 text-xs font-bold mt-0.5 shrink-0">Q</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-900 dark:text-white line-clamp-2 leading-relaxed">{msg.content}</p>
+                        <p className="text-[10px] text-gray-400 mt-1">{new Date(msg.timestamp).toLocaleString('zh-CN')}</p>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 group-hover:text-blue-400 shrink-0 mt-0.5 transition" />
+                    </div>
+                  </button>
+                )
+              })
+            )}
           </div>
         </div>
       )}

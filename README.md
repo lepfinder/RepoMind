@@ -57,6 +57,8 @@ npm run dev
 
 前端运行于 `http://localhost:3000`，后端 API 运行于 `http://localhost:3001`。
 
+## 运行截图
+
 <p align="center">
   <img src="public/asserts/scan.png" alt="启动扫描" width="480" />
   <br /><em>启动扫描 — 自动遍历本地 Git 仓库并同步元数据</em>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Sun, Moon, FolderPlus, Loader2, Check, AlertCircle, RefreshCw, Layers, Settings, ChevronRight } from 'lucide-react'
+import { Sun, Moon, FolderPlus, Loader2, Check, AlertCircle, RefreshCw, Radar, Layers, Settings, ChevronRight } from 'lucide-react'
 import type { Project } from './types'
 import ProjectCard from './components/ProjectCard'
 import ProjectDetail from './components/ProjectDetail'
@@ -406,8 +406,8 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                      {loading ? 'Loading...' : loaded ? 'Refresh' : 'Load Index'}
+                      <Radar className="w-4 h-4" />
+                      扫描本地仓库
                     </>
                   )}
                 </button>
@@ -423,6 +423,13 @@ export default function App() {
               onChange={e => setSearch(e.target.value)}
               className="flex-1 px-4 py-2 bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-lg text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-colors duration-200"
             />
+            <button
+              onClick={loadProjects}
+              title="刷新数据"
+              className="px-3 py-2 bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition active:scale-95 cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
             <select
               value={filterLang}
               onChange={e => setFilterLang(e.target.value)}
