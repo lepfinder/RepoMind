@@ -86,25 +86,36 @@ RepoMind/
 - **AI 引擎**（至少配置其一）：
   - **Hermes**：本地运行 Hermes API Gateway（默认监听 `http://127.0.0.1:8642`），并确保 API Key 配置在 `~/.hermes/.env` 中的 `API_SERVER_KEY` 字段。
   - **Claude Code**：安装 Anthropic Claude Code CLI（`claude` 命令可用即可），支持文件读写、代码搜索等工具调用。
-- （可选）设置 `GITHUB_TOKEN` 环境变量以启用 GitHub API 同步（Stars/Forks/Topics 及本地与远端提交比对）。
 - （可选）安装 Chrome 扩展以获得 GitHub 页面一键导入体验。
 
-### 2. 配置扫描目录
+### 2. 配置环境变量
 
-默认扫描目录为 `~/workspace/github`。如果你的 GitHub 项目存放在其他路径，请复制 `.env.example` 为 `.env` 并修改：
+复制 `.env.example` 为 `.env` 并根据需要修改：
 
 ```bash
 cp .env.example .env
-# 编辑 .env，设置你的项目目录路径：
-# REPO_MIND_DIR=/Users/yourname/Projects/GitHub
 ```
 
-也可通过环境变量覆盖：
+**`REPO_MIND_DIR`**（可选）：本地 GitHub 项目存放目录，默认 `~/workspace/github`。
+
+**`GITHUB_TOKEN`**（可选但强烈建议）：GitHub Personal Access Token，用于：
+- 同步项目的 Stars、Forks、Topics 等元数据
+- 对比本地与远程仓库的版本差异（领先/落后提交数）
+- 提升 API 调用限额（匿名 60 次/小时 → Token 5000 次/小时）
+
+获取 Token 的步骤：
+
+1. 访问 [GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/personal-access-tokens)
+2. 点击 **Generate new token**，设置名称和过期时间
+3. 权限只需勾选 **Contents**（只读）和 **Metadata**（只读）
+4. 点击 Generate，复制生成的 Token
+5. 填入 `.env` 文件：`GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx`
+
+也可通过系统环境变量覆盖（优先级高于 `.env`）：
 
 ```bash
-export REPO_MIND_DIR="/your/custom/path/to/github/projects"
-# 或在启动命令时传入
-REPO_MIND_DIR="/your/custom/path" npm run dev
+export REPO_MIND_DIR="/your/custom/path"
+export GITHUB_TOKEN="your_token_here"
 ```
 
 ### 3. 安装依赖
