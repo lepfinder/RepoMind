@@ -45,6 +45,7 @@ interface Props {
   onBack: () => void
   langColor: string
   onDeleted?: () => void
+  onSync?: () => void
 }
 
 const API_BASE = 'http://localhost:3001'
@@ -155,7 +156,7 @@ function shortLabel(label: string) {
   return parts.length > 2 ? parts.slice(-2).join('/') : (parts.pop() || label)
 }
 
-export default function ProjectDetail({ project: projectProp, onBack, langColor, onDeleted }: Props) {
+export default function ProjectDetail({ project: projectProp, onBack, langColor, onDeleted, onSync }: Props) {
   const [project, setProject] = useState(projectProp)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [analysisHistory, setAnalysisHistory] = useState<any[]>([])
@@ -667,6 +668,7 @@ export default function ProjectDetail({ project: projectProp, onBack, langColor,
                   if (data.success) {
                     setSyncMessage({ type: 'success', text: '同步成功' })
                     setProject(prev => ({ ...prev, compareStatus: 'identical', aheadBy: 0, behindBy: 0 }))
+                    onSync?.()
                   } else {
                     setSyncMessage({ type: 'error', text: data.error || '同步失败' })
                   }
