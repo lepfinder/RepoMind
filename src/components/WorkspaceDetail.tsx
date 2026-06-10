@@ -491,7 +491,7 @@ export default function WorkspaceDetail({ workspaceId, onBack }: Props) {
                               )}
                             </div>
                           )}
-                        </div>
+                        </>
                       ) : msg.content?.startsWith('分析出错:') || msg.content?.startsWith('请求失败:') ? (
                         <div className="text-xs text-red-500 dark:text-red-400">
                           <p className="whitespace-pre-wrap">{msg.content}</p>
